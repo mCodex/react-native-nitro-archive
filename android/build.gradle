@@ -36,7 +36,7 @@ def getExtOrIntegerDefault(name) {
 }
 
 android {
-  namespace "com.nitroarchive"
+  namespace "com.mcodex.nitroarchive"
 
   ndkVersion getExtOrDefault("ndkVersion")
   compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
@@ -137,12 +137,13 @@ dependencies {
 
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
+  implementation "net.lingala.zip4j:zip4j:2.11.5"
 }
 
 if (isNewArchitectureEnabled()) {
   react {
     jsRootDir = file("../src/")
     libraryName = "NitroArchive"
-    codegenJavaPackageName = "com.nitroarchive"
+    codegenJavaPackageName = "com.mcodex.nitroarchive"
   }
 }

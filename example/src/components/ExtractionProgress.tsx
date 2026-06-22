@@ -1,0 +1,87 @@
+import React from 'react'
+import { View, Text, StyleSheet } from 'react-native'
+import type { ArchiveProgress } from '@mcodex/react-native-nitro-archive'
+import { ProgressBar } from './ProgressBar'
+
+interface ExtractionProgressProps {
+  progress: ArchiveProgress
+}
+
+function formatBytes(bytes: bigint | undefined): string {
+  if (bytes === undefined) return 'N/A'
+  if (bytes < 1024n) return `${bytes.toString()} B`
+  if (bytes < 1048576n) return `${(Number(bytes) / 1024).toFixed(1)} KB`
+  if (bytes < 1073741824n) return `${(Number(bytes) / 1048576).toFixed(1)} MB`
+  return `${(Number(bytes) / 1073741824).toFixed(1)} GB`
+}
+
+export function ExtractionProgress({ progress }: ExtractionProgressProps) {
+  const percentage = progress.percentage ?? 0
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.phaseText}>Phase: {progress.phase}</Text>
+      {progress.currentEntry ? (
+        <Text style={styles.entryText} numberOfLines={1}>
+          Entry: {progress.currentEntry}
+        </Text>
+      ) : null}
+      <View style={styles.row}>
+        <Text style={styles.label}>
+          {formatBytes(progress.processedBytes)}
+          {progress.totalBytes !== undefined
+            ? ` / ${formatBytes(progress.totalBytes)}`
+            : ''}
+        </Text>
+        <Text style={styles.label}>{percentage.toFixed(0)}%</Text>
+      </View>
+      <ProgressBar progress={percentage} />
+      {progress.processedEntries > 0 ? (
+        <Text style={styles.label}>
+          Entries: {progress.processedEntries}
+          {progress.totalEntries !== undefined
+            ? ` / ${progress.totalEntries}`
+            : ''}
+        </Text>
+      ) : null}
+      {progress.bytesPerSecond !== undefined ? (
+        <Text style={styles.label}>
+          Speed: {formatBytes(BigInt(Math.round(progress.bytesPerSecond)))}/s
+        </Text>
+      ) : null}
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    backgroundColor: '#F9F9FB',
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5EA',
+  },
+  phaseText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  entryText: {
+    fontSize: 14,
+    color: '#3C3C43',
+    marginBottom: 8,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  label: {
+    fontSize: 13,
+    color: '#8E8E93',
+  },
+})

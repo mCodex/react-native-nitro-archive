@@ -1,0 +1,16 @@
+{
+  "description": "Test cases for archive path normalization and security policy",
+  "cases": [
+    {"input": "normal/file.txt", "valid": true, "normalized": "normal/file.txt"},
+    {"input": "a/b/c/file.txt", "valid": true, "normalized": "a/b/c/file.txt"},
+    {"input": "dir/", "valid": true, "normalized": "dir/"},
+    {"input": "../traversal.txt", "valid": false, "reason": "path traversal"},
+    {"input": "/absolute.txt", "valid": false, "reason": "absolute path"},
+    {"input": "C:/windows.txt", "valid": false, "reason": "windows drive path"},
+    {"input": "//server/share/file.txt", "valid": false, "reason": "UNC path"},
+    {"input": "file:///etc/passwd", "valid": false, "reason": "URI scheme path"},
+    {"input": "a/../../../etc/passwd", "valid": false, "reason": "path traversal"},
+    {"input": "./same/./dir/file.txt", "valid": true, "normalized": "same/dir/file.txt"},
+    {"input": "a\\b\\file.txt", "valid": true, "normalized": "a/b/file.txt"}
+  ]
+}

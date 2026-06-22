@@ -1,13 +1,18 @@
 {
-  "name": "react-native-nitro-archive",
+  "name": "@mcodex/react-native-nitro-archive",
   "version": "0.1.0",
-  "description": "react-native-nitro-archive is a react native package built with Nitro",
+  "description": "Production-grade ZIP archive library for React Native, powered by Nitro Modules",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
-  "react-native": "src/index",
-  "source": "src/index",
+  "react-native": "./src/index.ts",
+  "private": true,
+  "source": "./src/index.ts",
+  "sideEffects": false,
   "scripts": {
+    "test": "jest --passWithNoTests",
+    "lint": "biome check src/",
+    "format": "biome check --write src/",
     "typecheck": "tsc --noEmit",
     "clean": "git clean -dfX",
     "release": "semantic-release",
@@ -20,90 +25,106 @@
   ],
   "files": [
     "src",
-    "react-native.config.js",
     "lib",
-    "nitrogen",
-    "cpp",
+    "ios",
+    "android",
+    "nitrogen/generated",
+    "react-native-nitro-archive.podspec",
     "nitro.json",
-    "android/build.gradle",
-    "android/fix-prefab.gradle",
-    "android/gradle.properties",
-    "android/CMakeLists.txt",
-    "android/src",
-    "ios/**/*.h",
-    "ios/**/*.m",
-    "ios/**/*.mm",
-    "ios/**/*.cpp",
-    "ios/**/*.swift",
-    "app.plugin.js",
-    "*.podspec",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "workspaces": [
     "example"
   ],
-  "repository": "https://github.com/mateusandrade/react-native-nitro-archive.git",
+  "repository": "https://github.com/mcodex/react-native-nitro-archive.git",
   "author": "Mateus Andrade",
   "license": "MIT",
   "bugs": "https://github.com/mateusandrade/react-native-nitro-archive/issues",
   "homepage": "https://github.com/mateusandrade/react-native-nitro-archive#readme",
+  "exports": {
+    ".": {
+      "types": "./lib/typescript/src/index.d.ts",
+      "react-native": "./src/index.ts",
+      "import": "./lib/module/index.js",
+      "default": "./lib/module/index.js"
+    },
+    "./archive": {
+      "types": "./lib/typescript/src/archive.d.ts",
+      "react-native": "./src/archive.ts",
+      "import": "./lib/module/archive.js",
+      "default": "./lib/module/archive.js"
+    },
+    "./create": {
+      "types": "./lib/typescript/src/create.d.ts",
+      "react-native": "./src/create.ts",
+      "import": "./lib/module/create.js",
+      "default": "./lib/module/create.js"
+    },
+    "./sources": {
+      "types": "./lib/typescript/src/sources.d.ts",
+      "react-native": "./src/sources.ts",
+      "import": "./lib/module/sources.js",
+      "default": "./lib/module/sources.js"
+    },
+    "./destinations": {
+      "types": "./lib/typescript/src/destinations.d.ts",
+      "react-native": "./src/destinations.ts",
+      "import": "./lib/module/destinations.js",
+      "default": "./lib/module/destinations.js"
+    },
+    "./entries": {
+      "types": "./lib/typescript/src/entries.d.ts",
+      "react-native": "./src/entries.ts",
+      "import": "./lib/module/entries.js",
+      "default": "./lib/module/entries.js"
+    },
+    "./react": {
+      "types": "./lib/typescript/src/react/index.d.ts",
+      "react-native": "./src/react/index.ts",
+      "import": "./lib/module/react/index.js",
+      "default": "./lib/module/react/index.js"
+    },
+    "./types": {
+      "types": "./lib/typescript/src/types/index.d.ts",
+      "react-native": "./src/types/index.ts",
+      "import": "./lib/module/types/index.js",
+      "default": "./lib/module/types/index.js"
+    },
+    "./errors": {
+      "types": "./lib/typescript/src/errors.d.ts",
+      "react-native": "./src/errors.ts",
+      "import": "./lib/module/errors.js",
+      "default": "./lib/module/errors.js"
+    },
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
-    "@jamesacarr/eslint-formatter-github-actions": "^0.2.0",
+    "@biomejs/biome": "^2.5.0",
+    "@react-native/jest-preset": "^0.86.0",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "@types/jest": "^29.5.12",
-    "@types/react": "19.2.0",
-    "nitrogen": "0.35.9",
-    "react": "19.2.3",
-    "react-native": "0.84.1",
-    "react-native-builder-bob": "^0.40.18",
+    "@types/jest": "^30.0.0",
+    "@types/react": "19.2.17",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "conventional-changelog-conventionalcommits": "^9.3.1",
+    "jest": "^30.4.2",
+    "nitrogen": "^0.35.9",
+    "react": "^19.2.7",
+    "react-native": "0.86.0",
+    "react-native-builder-bob": "^0.43.0",
     "react-native-nitro-modules": "0.35.9",
-    "conventional-changelog-conventionalcommits": "^9.1.0",
-    "semantic-release": "^25.0.3",
-    "typescript": "^5.8.3"
+    "semantic-release": "^25.0.5",
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "react": "*",
     "react-native": "*",
     "react-native-nitro-modules": "*"
-  },
-  "eslintConfig": {
-    "root": true,
-    "extends": [
-      "@react-native",
-      "prettier"
-    ],
-    "plugins": [
-      "prettier"
-    ],
-    "rules": {
-      "prettier/prettier": [
-        "warn",
-        {
-          "quoteProps": "consistent",
-          "singleQuote": true,
-          "tabWidth": 2,
-          "trailingComma": "es5",
-          "useTabs": false
-        }
-      ]
-    }
-  },
-  "eslintIgnore": [
-    "node_modules/",
-    "lib/"
-  ],
-  "prettier": {
-    "quoteProps": "consistent",
-    "singleQuote": true,
-    "tabWidth": 2,
-    "trailingComma": "es5",
-    "useTabs": false,
-    "semi": false
   },
   "react-native-builder-bob": {
     "source": "src",
@@ -118,5 +139,6 @@
         }
       ]
     ]
-  }
+  },
+  "packageManager": "yarn@1.22.22"
 }

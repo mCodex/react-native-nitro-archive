@@ -1,0 +1,45 @@
+{
+  "extraction": {
+    "maxEntries": 10000,
+    "maxTotalUncompressedBytes": 2147483648,
+    "maxEntryUncompressedBytes": 536870912,
+    "maxCompressionRatio": 1000,
+    "maxPathDepth": 32,
+    "maxPathBytes": 1024,
+    "overwrite": "error",
+    "duplicates": "error",
+    "symlinks": "reject",
+    "preserveTimestamps": true,
+    "preservePermissions": false,
+    "preserveExecutableBit": false,
+    "cleanupOnError": true,
+    "cleanupOnCancel": true,
+    "progressIntervalMs": 100
+  },
+  "creation": {
+    "compression": "balanced",
+    "storeAlreadyCompressed": true,
+    "existingDestination": "error",
+    "atomic": true,
+    "includeEmptyDirectories": true,
+    "preserveTimestamps": true,
+    "maxInMemoryBytes": 16777216,
+    "progressIntervalMs": 100
+  },
+  "validation": {
+    "verifyChecksums": true,
+    "scanAllEntries": true,
+    "progressIntervalMs": 100
+  },
+  "listing": {
+    "offset": 0,
+    "limit": 250,
+    "maxLimit": 2000
+  },
+  "compressionLevels": {
+    "fastest": 1,
+    "balanced": 6,
+    "smallest": 9
+  },
+  "alreadyCompressedExtensions": [".jpg", ".jpeg", ".png", ".webp", ".avif", ".heic", ".mp4", ".mov", ".m4v", ".mp3", ".aac", ".m4a", ".ogg", ".zip", ".gz", ".zst"]
+}

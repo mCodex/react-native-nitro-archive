@@ -1,0 +1,18 @@
+{
+  "states": ["idle", "running", "cancelling", "succeeded", "failed", "cancelled"],
+  "allowedTransitions": {
+    "idle": ["running", "cancelled"],
+    "running": ["cancelling", "succeeded", "failed", "cancelled"],
+    "cancelling": ["cancelled", "failed"],
+    "succeeded": [],
+    "failed": [],
+    "cancelled": []
+  },
+  "rules": [
+    "start() from idle -> running; throws E_INVALID_STATE otherwise",
+    "cancel() from terminal state -> false; from running -> true + transition to cancelling; from idle -> true + transition to cancelled",
+    "No progress emitted after terminal state",
+    "Progress at 100% only after succeeded",
+    "dispose() releases all resources; subsequent calls are no-ops"
+  ]
+}

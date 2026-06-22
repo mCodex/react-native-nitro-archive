@@ -9,6 +9,7 @@
     "lib": ["esnext"],
     "module": "esnext",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "noEmit": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitReturns": true,
@@ -33,5 +34,5 @@
     "**/metro.config.js",
     "**/tsconfig.json"
   ],
-  "include": ["src/**/*", "nitrogen/**/*.json"]
+  "include": ["src/**/*", "nitrogen/**/*.json", "tests/**/*.ts"]
 }

@@ -1,30 +1,14 @@
 {
   "$schema": "https://nitro.margelo.com/nitro.schema.json",
-  "cxxNamespace": [
-    "nitroarchive"
-  ],
-  "ios": {
-    "iosModuleName": "NitroArchive"
-  },
-  "android": {
-    "androidNamespace": [
-      "nitroarchive"
-    ],
-    "androidCxxLibName": "NitroArchive"
-  },
+  "cxxNamespace": ["archive"],
+  "ios": { "iosModuleName": "NitroArchive" },
+  "android": { "androidNamespace": ["archive"], "androidCxxLibName": "NitroArchive" },
   "autolinking": {
-    "NitroArchive": {
-      "ios": {
-        "language": "swift",
-        "implementationClassName": "HybridNitroArchive"
-      },
-      "android": {
-        "language": "kotlin",
-        "implementationClassName": "HybridNitroArchive"
-      }
+    "ArchiveModule": {
+      "ios": { "language": "swift", "implementationClassName": "HybridArchiveModule" },
+      "android": { "language": "kotlin", "implementationClassName": "HybridArchiveModule" }
     }
   },
-  "ignorePaths": [
-    "**/node_modules"
-  ]
+  "ignorePaths": ["**/node_modules/**", "**/lib/**", "**/example/**", "**/tests/**"],
+  "gitAttributesGeneratedFlag": true
 }

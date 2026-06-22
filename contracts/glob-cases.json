@@ -1,0 +1,15 @@
+{
+  "description": "Test cases for glob pattern matching on archive paths",
+  "cases": [
+    {"pattern": "*.txt", "path": "file.txt", "matches": true},
+    {"pattern": "*.txt", "path": "file.json", "matches": false},
+    {"pattern": "images/**/*.jpg", "path": "images/2024/photo.jpg", "matches": true},
+    {"pattern": "images/**/*.jpg", "path": "images/photo.jpg", "matches": true},
+    {"pattern": "**/*.txt", "path": "a/b/c/file.txt", "matches": true},
+    {"pattern": "data/*.csv", "path": "data/2024/file.csv", "matches": true},
+    {"pattern": "data/*.csv", "path": "data/2024/sub/file.csv", "matches": false},
+    {"pattern": "*.{jpg,png}", "path": "image.png", "matches": true},
+    {"pattern": "*.{jpg,png}", "path": "image.gif", "matches": false},
+    {"pattern": "src/**", "path": "src/main/index.ts", "matches": true}
+  ]
+}

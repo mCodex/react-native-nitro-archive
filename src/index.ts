@@ -1,5 +1,11 @@
-import { NitroModules } from 'react-native-nitro-modules'
-import type { NitroArchive as NitroArchiveSpec } from './specs/nitro-archive.nitro'
-
-export const NitroArchive =
-  NitroModules.createHybridObject<NitroArchiveSpec>('NitroArchive')
+export { openArchive } from './archive'
+export { createArchive } from './create'
+export { detectArchiveFormat } from './detect'
+export { getArchiveCapabilities } from './capabilities'
+export { checkArchiveAccess } from './access'
+export { bufferSource, fileSource, uriSource } from './sources'
+export { directoryDestination, directoryUriDestination, fileDestination, uriDestination } from './destinations'
+export { bufferEntry, directoryEntry, fileEntry, uriEntry } from './entries'
+export { ArchiveError, isArchiveError } from './errors'
+export type { ArchiveReader } from './public/ArchiveReader'
+export type * from './types'

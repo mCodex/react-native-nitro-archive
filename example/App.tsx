@@ -1,26 +1,18 @@
-import React from 'react';
-import {Text, View, StyleSheet } from 'react-native';
-import { NitroArchive } from 'react-native-nitro-archive';
+import React from 'react'
+import { StatusBar } from 'react-native'
+import { NavigationContainer } from '@react-navigation/native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { AppNavigator } from './src/navigation/AppNavigator'
 
 function App(): React.JSX.Element {
   return (
-    <View style={styles.container}>
-        <Text style={styles.text}>
-        {NitroArchive.sum(1, 2)}
-        </Text>
-    </View>
-  );
+    <SafeAreaProvider>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <NavigationContainer>
+        <AppNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
+  )
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-        fontSize: 40, 
-        color: 'green'
-    }});
-
-export default App;
+export default App
