@@ -137,7 +137,7 @@ dependencies {
 
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
-  implementation "net.lingala.zip4j:zip4j:2.11.5"
+  implementation "net.lingala.zip4j:zip4j:2.11.6"
 }
 
 if (isNewArchitectureEnabled()) {
