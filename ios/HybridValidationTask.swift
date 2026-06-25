@@ -78,7 +78,19 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
           encryptedEntries += 1
         }
 
-        if verifyChecksums && !entry.encrypted {
+        if verifyChecksums {
+          if entry.encrypted && (password?.isEmpty ?? true) {
+            issues.append(NativeArchiveIssue(
+              code: "E_PASSWORD_REQUIRED",
+              severity: "error",
+              message: "Password is required to validate encrypted entry: \(entry.path)",
+              entryPath: entry.path,
+              entryIndex: Double(index)
+            ))
+            checkedEntries += 1
+            continue
+          }
+
           guard entry.uncompressedSize <= maxChecksumBytes else {
             issues.append(NativeArchiveIssue(
               code: "E_ARCHIVE_TOO_LARGE",
@@ -109,6 +121,14 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
                 code: "E_CHECKSUM_MISMATCH",
                 severity: "error",
                 message: "Checksum validation failed for entry: \(entry.path)",
+                entryPath: entry.path,
+                entryIndex: Double(index)
+              ))
+            case .passwordRequired, .badPassword, .unsupportedEncryption:
+              issues.append(NativeArchiveIssue(
+                code: error.code,
+                severity: "error",
+                message: "\(error)",
                 entryPath: entry.path,
                 entryIndex: Double(index)
               ))

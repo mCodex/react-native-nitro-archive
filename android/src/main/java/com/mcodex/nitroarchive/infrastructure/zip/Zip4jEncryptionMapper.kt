@@ -1,6 +1,7 @@
 package com.mcodex.nitroarchive.infrastructure.zip
 
 import net.lingala.zip4j.model.enums.EncryptionMethod
+import net.lingala.zip4j.model.enums.AesKeyStrength
 
 /**
  * Maps string encryption method names to Zip4j EncryptionMethod enum.
@@ -16,6 +17,14 @@ object Zip4jEncryptionMapper {
             "zip-crypto" -> EncryptionMethod.ZIP_STANDARD
             "aes-128" -> EncryptionMethod.AES
             "aes-256" -> EncryptionMethod.AES
+            else -> null
+        }
+    }
+
+    fun aesStrength(method: String?): AesKeyStrength? {
+        return when (method) {
+            "aes-128" -> AesKeyStrength.KEY_STRENGTH_128
+            "aes-256" -> AesKeyStrength.KEY_STRENGTH_256
             else -> null
         }
     }

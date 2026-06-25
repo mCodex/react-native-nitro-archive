@@ -9,19 +9,13 @@ final class SafeDirectoryOutput: DirectoryOutput {
   }
 
   func prepareDirectory(at path: String) async throws {
-    let dirURL = baseURL.appendingPathComponent(path)
-    guard dirURL.path.hasPrefix(baseURL.path) else {
-      throw ArchiveDomainError.pathTraversal(path)
-    }
+    let dirURL = try safeURL(for: path)
     try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true, attributes: nil)
     createdPaths.append(path)
   }
 
   func createFile(at path: String) async throws -> URL {
-    let fileURL = baseURL.appendingPathComponent(path)
-    guard fileURL.path.hasPrefix(baseURL.path) else {
-      throw ArchiveDomainError.pathTraversal(path)
-    }
+    let fileURL = try safeURL(for: path)
     let parent = fileURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true, attributes: nil)
     FileManager.default.createFile(atPath: fileURL.path, contents: nil)
@@ -39,5 +33,14 @@ final class SafeDirectoryOutput: DirectoryOutput {
       try? FileManager.default.removeItem(at: url)
     }
     createdPaths.removeAll()
+  }
+
+  private func safeURL(for path: String) throws -> URL {
+    let basePath = baseURL.standardizedFileURL.path
+    let url = baseURL.appendingPathComponent(path).standardizedFileURL
+    guard url.path == basePath || url.path.hasPrefix(basePath + "/") else {
+      throw ArchiveDomainError.pathTraversal(path)
+    }
+    return url
   }
 }

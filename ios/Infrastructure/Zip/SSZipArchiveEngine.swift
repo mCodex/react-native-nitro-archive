@@ -82,6 +82,10 @@ final class SSZipArchiveEngine: ArchiveEngine {
     let password = plan.encryptionPassword
     let shouldStore = plan.storeAlreadyCompressed
 
+    if plan.encryptionMethod == "aes-128" {
+      throw ArchiveDomainError.unsupportedEncryption
+    }
+
     if useEncryption && password == nil {
       throw ArchiveDomainError.passwordRequired
     }
@@ -227,6 +231,10 @@ final class SSZipArchiveEngine: ArchiveEngine {
       return .bufferLimitExceeded
     case 7:
       return .checksumMismatch(path)
+    case 8:
+      return .passwordRequired
+    case 9:
+      return .badPassword
     default:
       return .invalidArchive(nsError.localizedDescription)
     }

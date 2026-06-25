@@ -4,7 +4,7 @@
   "description": "Production-grade ZIP archive library for React Native, powered by Nitro Modules",
   "main": "./lib/commonjs/index.js",
   "module": "./lib/module/index.js",
-  "types": "./lib/typescript/src/index.d.ts",
+  "types": "./lib/typescript/module/src/index.d.ts",
   "react-native": "./src/index.ts",
   "private": true,
   "source": "./src/index.ts",
@@ -44,58 +44,103 @@
   "homepage": "https://github.com/mateusandrade/react-native-nitro-archive#readme",
   "exports": {
     ".": {
-      "types": "./lib/typescript/src/index.d.ts",
       "react-native": "./src/index.ts",
-      "import": "./lib/module/index.js",
-      "default": "./lib/module/index.js"
+      "import": {
+        "types": "./lib/typescript/module/src/index.d.ts",
+        "default": "./lib/module/index.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/index.d.ts",
+        "default": "./lib/commonjs/index.js"
+      }
     },
     "./archive": {
-      "types": "./lib/typescript/src/archive.d.ts",
       "react-native": "./src/archive.ts",
-      "import": "./lib/module/archive.js",
-      "default": "./lib/module/archive.js"
+      "import": {
+        "types": "./lib/typescript/module/src/archive.d.ts",
+        "default": "./lib/module/archive.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/archive.d.ts",
+        "default": "./lib/commonjs/archive.js"
+      }
     },
     "./create": {
-      "types": "./lib/typescript/src/create.d.ts",
       "react-native": "./src/create.ts",
-      "import": "./lib/module/create.js",
-      "default": "./lib/module/create.js"
+      "import": {
+        "types": "./lib/typescript/module/src/create.d.ts",
+        "default": "./lib/module/create.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/create.d.ts",
+        "default": "./lib/commonjs/create.js"
+      }
     },
     "./sources": {
-      "types": "./lib/typescript/src/sources.d.ts",
       "react-native": "./src/sources.ts",
-      "import": "./lib/module/sources.js",
-      "default": "./lib/module/sources.js"
+      "import": {
+        "types": "./lib/typescript/module/src/sources.d.ts",
+        "default": "./lib/module/sources.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/sources.d.ts",
+        "default": "./lib/commonjs/sources.js"
+      }
     },
     "./destinations": {
-      "types": "./lib/typescript/src/destinations.d.ts",
       "react-native": "./src/destinations.ts",
-      "import": "./lib/module/destinations.js",
-      "default": "./lib/module/destinations.js"
+      "import": {
+        "types": "./lib/typescript/module/src/destinations.d.ts",
+        "default": "./lib/module/destinations.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/destinations.d.ts",
+        "default": "./lib/commonjs/destinations.js"
+      }
     },
     "./entries": {
-      "types": "./lib/typescript/src/entries.d.ts",
       "react-native": "./src/entries.ts",
-      "import": "./lib/module/entries.js",
-      "default": "./lib/module/entries.js"
+      "import": {
+        "types": "./lib/typescript/module/src/entries.d.ts",
+        "default": "./lib/module/entries.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/entries.d.ts",
+        "default": "./lib/commonjs/entries.js"
+      }
     },
     "./react": {
-      "types": "./lib/typescript/src/react/index.d.ts",
       "react-native": "./src/react/index.ts",
-      "import": "./lib/module/react/index.js",
-      "default": "./lib/module/react/index.js"
+      "import": {
+        "types": "./lib/typescript/module/src/react/index.d.ts",
+        "default": "./lib/module/react/index.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/react/index.d.ts",
+        "default": "./lib/commonjs/react/index.js"
+      }
     },
     "./types": {
-      "types": "./lib/typescript/src/types/index.d.ts",
       "react-native": "./src/types/index.ts",
-      "import": "./lib/module/types/index.js",
-      "default": "./lib/module/types/index.js"
+      "import": {
+        "types": "./lib/typescript/module/src/types/index.d.ts",
+        "default": "./lib/module/types/index.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/types/index.d.ts",
+        "default": "./lib/commonjs/types/index.js"
+      }
     },
     "./errors": {
-      "types": "./lib/typescript/src/errors.d.ts",
       "react-native": "./src/errors.ts",
-      "import": "./lib/module/errors.js",
-      "default": "./lib/module/errors.js"
+      "import": {
+        "types": "./lib/typescript/module/src/errors.d.ts",
+        "default": "./lib/module/errors.js"
+      },
+      "require": {
+        "types": "./lib/typescript/commonjs/src/errors.d.ts",
+        "default": "./lib/commonjs/errors.js"
+      }
     },
     "./package.json": "./package.json"
   },
@@ -132,8 +177,18 @@
     "source": "src",
     "output": "lib",
     "targets": [
-      "commonjs",
-      "module",
+      [
+        "commonjs",
+        {
+          "esm": true
+        }
+      ],
+      [
+        "module",
+        {
+          "esm": true
+        }
+      ],
       [
         "typescript",
         {

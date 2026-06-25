@@ -24,7 +24,7 @@ class HybridArchiveModule(private val context: Context) : HybridArchiveModuleSpe
             readableFormats = arrayOf("zip"),
             writableFormats = arrayOf("zip"),
             compressionMethods = arrayOf("store", "deflate"),
-            encryptionMethods = arrayOf("none", "zip-crypto", "aes-128", "aes-256"),
+            encryptionMethods = arrayOf("none", "zip-crypto", "aes-256"),
             supportsFilePaths = true,
             supportsInputUris = true,
             supportsOutputUris = true,

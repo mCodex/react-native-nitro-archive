@@ -49,16 +49,16 @@ class ExtractArchiveUseCase(private val engine: ArchiveEngine) {
                     }
                     val file = output.createFile(at = descriptor.path)
 
-                    val data = engine.readEntry(
+                    val bytesWritten = engine.extractEntry(
                         session = session,
                         path = descriptor.path,
+                        destination = file,
                         limit = limits.maxEntryUncompressedBytes,
                         password = password
                     )
 
-                    file.writeBytes(data)
                     extracted++
-                    written += data.size.toLong()
+                    written += bytesWritten
                 }
                 else -> skipped++
             }

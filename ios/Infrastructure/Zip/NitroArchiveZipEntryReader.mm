@@ -11,6 +11,8 @@ typedef NS_ENUM(NSInteger, NitroArchiveZipEntryReaderErrorCode) {
   NitroArchiveZipEntryReaderErrorRead = 5,
   NitroArchiveZipEntryReaderErrorWrite = 6,
   NitroArchiveZipEntryReaderErrorChecksum = 7,
+  NitroArchiveZipEntryReaderErrorPasswordRequired = 8,
+  NitroArchiveZipEntryReaderErrorBadPassword = 9,
 };
 
 static void NitroArchiveSetError(NSError **error, NitroArchiveZipEntryReaderErrorCode code, NSString *message) {
@@ -22,12 +24,16 @@ static void NitroArchiveSetError(NSError **error, NitroArchiveZipEntryReaderErro
                            userInfo:@{NSLocalizedDescriptionKey: message}];
 }
 
-static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, NSError **error) {
+static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, BOOL encrypted, NSError **error) {
+  if (encrypted && password.length == 0) {
+    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorPasswordRequired, @"Password is required for encrypted ZIP entry");
+    return NO;
+  }
   int ret = password.length > 0
     ? unzOpenCurrentFilePassword(zip, [password cStringUsingEncoding:NSUTF8StringEncoding])
     : unzOpenCurrentFile(zip);
   if (ret != UNZ_OK) {
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorOpenEntry, @"Could not open ZIP entry");
+    NitroArchiveSetError(error, password.length > 0 ? NitroArchiveZipEntryReaderErrorBadPassword : NitroArchiveZipEntryReaderErrorOpenEntry, @"Could not open ZIP entry");
     return NO;
   }
   return YES;
@@ -51,16 +57,15 @@ static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, NSErro
     NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorEntryNotFound, @"Entry not found in ZIP archive");
     return nil;
   }
-  if (!NitroArchiveOpenCurrentEntry(zip, password, error)) {
-    unzClose(zip);
-    return nil;
-  }
-
   unz_file_info64 info = {};
   if (unzGetCurrentFileInfo64(zip, &info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK) {
-    unzCloseCurrentFile(zip);
     unzClose(zip);
     NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorRead, @"Could not read ZIP entry metadata");
+    return nil;
+  }
+  BOOL encrypted = (info.flag & 1) != 0;
+  if (!NitroArchiveOpenCurrentEntry(zip, password, encrypted, error)) {
+    unzClose(zip);
     return nil;
   }
   if (info.uncompressed_size > limit) {
@@ -92,7 +97,7 @@ static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, NSErro
     return nil;
   }
   if (closeRet != UNZ_OK) {
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorChecksum, @"ZIP entry checksum failed");
+    NitroArchiveSetError(error, encrypted && password.length > 0 ? NitroArchiveZipEntryReaderErrorBadPassword : NitroArchiveZipEntryReaderErrorChecksum, @"ZIP entry checksum failed");
     return nil;
   }
   return data;
@@ -116,16 +121,15 @@ static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, NSErro
     NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorEntryNotFound, @"Entry not found in ZIP archive");
     return NO;
   }
-  if (!NitroArchiveOpenCurrentEntry(zip, password, error)) {
-    unzClose(zip);
-    return NO;
-  }
-
   unz_file_info64 info = {};
   if (unzGetCurrentFileInfo64(zip, &info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK) {
-    unzCloseCurrentFile(zip);
     unzClose(zip);
     NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorRead, @"Could not read ZIP entry metadata");
+    return NO;
+  }
+  BOOL encrypted = (info.flag & 1) != 0;
+  if (!NitroArchiveOpenCurrentEntry(zip, password, encrypted, error)) {
+    unzClose(zip);
     return NO;
   }
   if (info.uncompressed_size > limit) {
@@ -165,7 +169,7 @@ static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, NSErro
     return NO;
   }
   if (closeRet != UNZ_OK) {
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorChecksum, @"ZIP entry checksum failed");
+    NitroArchiveSetError(error, encrypted && password.length > 0 ? NitroArchiveZipEntryReaderErrorBadPassword : NitroArchiveZipEntryReaderErrorChecksum, @"ZIP entry checksum failed");
     return NO;
   }
 

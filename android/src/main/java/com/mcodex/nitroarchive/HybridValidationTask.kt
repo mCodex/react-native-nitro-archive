@@ -47,13 +47,15 @@ class HybridValidationTask(
             var encryptedCount = 0
             val verifyChecksums = request.verifyChecksums ?: true
             val scanAll = request.scanAllEntries ?: true
+            val maxChecksumBytes = 64L * 1024L * 1024L
+            val entriesToValidate = if (scanAll) entries else entries.filter { it.encrypted }
 
             emitProgress(
                 phase = "validating",
-                totalEntries = entries.size.toDouble()
+                totalEntries = entriesToValidate.size.toDouble()
             )
 
-            for ((i, entry) in entries.withIndex()) {
+            for ((i, entry) in entriesToValidate.withIndex()) {
                 if (stateMachine.state == TaskState.CANCELLING) {
                     throw ArchiveDomainError.OperationCancelled()
                 }
@@ -67,11 +69,31 @@ class HybridValidationTask(
                 emitProgress(
                     phase = "validating",
                     processedEntries = i.toDouble(),
-                    totalEntries = entries.size.toDouble(),
+                    totalEntries = entriesToValidate.size.toDouble(),
                     currentEntry = entry.path
                 )
 
                 if (entry.kind == "file" && (verifyChecksums || scanAll)) {
+                    if (entry.encrypted && request.password.isNullOrEmpty()) {
+                        issues.add(NativeArchiveIssue(
+                            code = "E_PASSWORD_REQUIRED",
+                            severity = "error",
+                            message = "Password is required to validate encrypted entry: ${entry.path}",
+                            entryPath = entry.path,
+                            entryIndex = entry.index.toDouble()
+                        ))
+                        continue
+                    }
+                    if (entry.uncompressedSize > maxChecksumBytes) {
+                        issues.add(NativeArchiveIssue(
+                            code = "E_ARCHIVE_TOO_LARGE",
+                            severity = "warning",
+                            message = "Checksum validation skipped for large entry: ${entry.path}",
+                            entryPath = entry.path,
+                            entryIndex = entry.index.toDouble()
+                        ))
+                        continue
+                    }
                     try {
                         val data = engine.readEntry(
                             session = session,
@@ -84,7 +106,7 @@ class HybridValidationTask(
                             val actualCrc = crc32(data)
                             if (actualCrc != entry.crc32) {
                                 issues.add(NativeArchiveIssue(
-                                    code = "CHECKSUM_MISMATCH",
+                                    code = "E_CHECKSUM_MISMATCH",
                                     severity = "error",
                                     message = "CRC mismatch for entry: ${entry.path}",
                                     entryPath = entry.path,
@@ -94,9 +116,25 @@ class HybridValidationTask(
                         }
                     } catch (e: ArchiveDomainError.ChecksumMismatch) {
                         issues.add(NativeArchiveIssue(
-                            code = "CHECKSUM_MISMATCH",
+                            code = "E_CHECKSUM_MISMATCH",
                             severity = "error",
                             message = e.message ?: "CRC mismatch",
+                            entryPath = entry.path,
+                            entryIndex = entry.index.toDouble()
+                        ))
+                    } catch (e: ArchiveDomainError.BadPassword) {
+                        issues.add(NativeArchiveIssue(
+                            code = e.code,
+                            severity = "error",
+                            message = e.message ?: "Incorrect password",
+                            entryPath = entry.path,
+                            entryIndex = entry.index.toDouble()
+                        ))
+                    } catch (e: ArchiveDomainError.UnsupportedEncryption) {
+                        issues.add(NativeArchiveIssue(
+                            code = e.code,
+                            severity = "error",
+                            message = e.message ?: "Unsupported encryption",
                             entryPath = entry.path,
                             entryIndex = entry.index.toDouble()
                         ))
@@ -120,8 +158,8 @@ class HybridValidationTask(
 
             emitProgress(
                 phase = "finalizing",
-                processedEntries = entries.size.toDouble(),
-                totalEntries = entries.size.toDouble()
+                processedEntries = entriesToValidate.size.toDouble(),
+                totalEntries = entriesToValidate.size.toDouble()
             )
 
             stateMachine.succeed()
@@ -129,7 +167,7 @@ class HybridValidationTask(
             NativeValidationResult(
                 operationId = operationId,
                 valid = issues.isEmpty(),
-                checkedEntries = entries.size.toDouble(),
+                checkedEntries = entriesToValidate.size.toDouble(),
                 checkedUncompressedBytes = checkedUncompressed,
                 encryptedEntries = encryptedCount.toDouble(),
                 durationMs = (System.currentTimeMillis() - startTime).toDouble(),

@@ -27,7 +27,6 @@ import {
   directoryUriDestination,
 } from '@mcodex/react-native-nitro-archive'
 import { ArchiveInfo } from '../components/ArchiveInfo'
-import { ProgressBar } from '../components/ProgressBar'
 import { ExtractionProgress } from '../components/ExtractionProgress'
 
 type ScreenState = 'idle' | 'loading' | 'loaded' | 'listing' | 'extracting' | 'validating' | 'reading' | 'error'
@@ -37,6 +36,27 @@ function formatBytes(bytes: bigint): string {
   if (bytes < 1048576n) return `${(Number(bytes) / 1024).toFixed(1)} KB`
   if (bytes < 1073741824n) return `${(Number(bytes) / 1048576).toFixed(1)} MB`
   return `${(Number(bytes) / 1073741824).toFixed(1)} GB`
+}
+
+function defaultExtractPath(pathOrUri: string): string {
+  const trimmed = pathOrUri.trim().replace(/\/+$/, '')
+  const rawName = trimmed.split('/').pop() || 'archive'
+  const archiveName = rawName.replace(/\.[^.]+$/, '') || 'archive'
+  return `/tmp/${archiveName}-extracted`
+}
+
+function validateExtractPath(path: string): string | undefined {
+  const trimmed = path.trim()
+
+  if (!trimmed) return 'Enter an absolute destination directory.'
+  if (!trimmed.includes('://') && !trimmed.startsWith('/')) {
+    return 'Use an absolute directory path, for example /tmp/test-extracted.'
+  }
+  if (/\.zip$/i.test(trimmed)) {
+    return 'Choose a directory, not the .zip file. Try /tmp/test-extracted.'
+  }
+
+  return undefined
 }
 
 export function OpenArchiveScreen() {
@@ -56,6 +76,9 @@ export function OpenArchiveScreen() {
   const [error, setError] = useState<string>('')
   const extractTaskRef = useRef<ArchiveTask<ExtractionResult> | null>(null)
   const validateTaskRef = useRef<ArchiveTask<ValidationResult> | null>(null)
+  const isBusy = state === 'loading' || state === 'listing' || state === 'extracting' || state === 'validating' || state === 'reading'
+  const passwordOption = password.trim() || undefined
+  const encryptedNeedsPassword = reader?.encrypted === true && passwordOption == null
 
   const handleOpenArchive = useCallback(async () => {
     try {
@@ -80,8 +103,9 @@ export function OpenArchiveScreen() {
       const isUri = archiveUri.includes('://')
       const source = isUri ? uriSource(archiveUri) : fileSource(archiveUri)
       setArchiveName(archiveUri.split('/').pop() ?? 'archive.zip')
+      setExtractPath(defaultExtractPath(archiveUri))
 
-      const archiveReader = await openArchive(source, { password: password || undefined })
+      const archiveReader = await openArchive(source, { password: passwordOption })
       setReader(archiveReader)
       setState('loaded')
     } catch (err: unknown) {
@@ -89,7 +113,7 @@ export function OpenArchiveScreen() {
       setError(message)
       setState('error')
     }
-  }, [archiveUri, password])
+  }, [archiveUri, passwordOption])
 
   const handleListEntries = useCallback(async () => {
     if (!reader) return
@@ -107,10 +131,22 @@ export function OpenArchiveScreen() {
   }, [reader])
 
   const handleExtract = useCallback(async () => {
-    if (!reader || !extractPath.trim()) {
-      Alert.alert('Missing Path', 'Enter an absolute destination path.')
+    if (!reader) return
+
+    const pathError = validateExtractPath(extractPath)
+    if (pathError) {
+      Alert.alert('Choose an output folder', pathError)
       return
     }
+
+    if (reader.encrypted && passwordOption == null) {
+      Alert.alert(
+        'Password required',
+        'This archive is encrypted. Enter the password before extracting.',
+      )
+      return
+    }
+
     try {
       setState('extracting')
       setError('')
@@ -125,6 +161,7 @@ export function OpenArchiveScreen() {
       const task = reader.extract({
         destination,
         overwrite: 'replace',
+        password: passwordOption,
       })
 
       extractTaskRef.current = task
@@ -136,6 +173,7 @@ export function OpenArchiveScreen() {
       try {
         const result = await task.start()
         setExtractionResult(result)
+        setExtractionProgress(null)
         setState('loaded')
       } finally {
         removeListener()
@@ -145,12 +183,29 @@ export function OpenArchiveScreen() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       setError(message)
+      setExtractionProgress(null)
       setState('loaded')
     }
-  }, [reader, extractPath])
+  }, [reader, extractPath, passwordOption])
+
+  const handleCancelExtract = useCallback(() => {
+    const task = extractTaskRef.current
+    if (task?.cancel()) {
+      setError('Cancelling extraction...')
+    }
+  }, [])
 
   const handleValidate = useCallback(async () => {
     if (!reader) return
+
+    if (reader.encrypted && passwordOption == null) {
+      Alert.alert(
+        'Password required',
+        'This archive is encrypted. Enter the password before validating checksums.',
+      )
+      return
+    }
+
     try {
       setState('validating')
       setError('')
@@ -160,6 +215,7 @@ export function OpenArchiveScreen() {
       const task = reader.validate({
         verifyChecksums: true,
         scanAllEntries: true,
+        password: passwordOption,
       })
 
       validateTaskRef.current = task
@@ -171,6 +227,7 @@ export function OpenArchiveScreen() {
       try {
         const result = await task.start()
         setValidationResult(result)
+        setValidationProgress(null)
         setState('loaded')
       } finally {
         removeListener()
@@ -180,9 +237,10 @@ export function OpenArchiveScreen() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       setError(message)
+      setValidationProgress(null)
       setState('loaded')
     }
-  }, [reader])
+  }, [reader, passwordOption])
 
   const handleReadEntry = useCallback(async () => {
     if (!reader || !entryPage) return
@@ -191,10 +249,18 @@ export function OpenArchiveScreen() {
       Alert.alert('No File Entry', 'No file entries available to read.')
       return
     }
+    if (fileEntry.encrypted && passwordOption == null) {
+      Alert.alert(
+        'Password required',
+        'This entry is encrypted. Enter the password before reading it.',
+      )
+      return
+    }
     try {
       setState('reading')
       const buffer = await reader.readEntry(fileEntry.path, {
         maxBytes: 10485760n,
+        password: passwordOption,
       })
       const sizeStr = formatBytes(BigInt(buffer.byteLength))
       Alert.alert(
@@ -207,7 +273,7 @@ export function OpenArchiveScreen() {
       Alert.alert('Read Failed', message)
       setState('loaded')
     }
-  }, [reader, entryPage])
+  }, [reader, entryPage, passwordOption])
 
   return (
     <ScrollView
@@ -215,7 +281,7 @@ export function OpenArchiveScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      {state === 'idle' || !reader ? (
+      {!reader && state !== 'loading' ? (
         <View style={styles.centeredSection}>
           <TextInput
             style={styles.input}
@@ -281,12 +347,23 @@ export function OpenArchiveScreen() {
             comment={reader.comment}
           />
 
+          {reader.encrypted ? (
+            <View style={styles.warningCard}>
+              <Text style={styles.warningTitle}>Encrypted archive</Text>
+              <Text style={styles.warningText}>
+                {encryptedNeedsPassword
+                  ? 'Enter the password above, then run read, extract, or validate.'
+                  : 'Password is set for read, extract, and validate operations.'}
+              </Text>
+            </View>
+          ) : null}
+
           {extractionProgress ? (
-            <ExtractionProgress progress={extractionProgress} />
+            <ExtractionProgress progress={extractionProgress} title="Extraction" />
           ) : null}
 
           {validationProgress ? (
-            <ExtractionProgress progress={validationProgress} />
+            <ExtractionProgress progress={validationProgress} title="Validation" />
           ) : null}
 
           {extractionResult ? (
@@ -352,9 +429,12 @@ export function OpenArchiveScreen() {
             <Text style={styles.sectionTitle}>Actions</Text>
 
             <TouchableOpacity
-              style={styles.actionButton}
+              style={[
+                styles.actionButton,
+                isBusy && styles.disabledButton,
+              ]}
               onPress={handleListEntries}
-              disabled={state === 'listing'}
+              disabled={isBusy}
             >
               <Text style={styles.actionButtonText}>
                 {state === 'listing' ? 'Loading...' : 'List Entries'}
@@ -391,7 +471,7 @@ export function OpenArchiveScreen() {
                 <TouchableOpacity
                   style={styles.readEntryButton}
                   onPress={handleReadEntry}
-                  disabled={state === 'reading'}
+                  disabled={isBusy}
                 >
                   <Text style={styles.readEntryButtonText}>
                     {state === 'reading' ? 'Reading...' : 'Read First File Entry'}
@@ -400,37 +480,50 @@ export function OpenArchiveScreen() {
               </View>
             ) : null}
 
-            <Text style={styles.inputLabel}>Extract Destination Path</Text>
+            <Text style={styles.inputLabel}>Extract destination directory</Text>
             <TextInput
               style={styles.input}
-              placeholder="/path/to/extract/directory"
+              placeholder="/tmp/test-extracted"
               placeholderTextColor="#C7C7CC"
               value={extractPath}
               onChangeText={setExtractPath}
               autoCapitalize="none"
               autoCorrect={false}
+              editable={!isBusy}
             />
+            <Text style={styles.fieldHelp}>
+              Extraction writes files into a folder. Do not use the archive path itself.
+            </Text>
 
             <TouchableOpacity
               style={[
                 styles.actionButton,
-                state === 'extracting' && styles.disabledButton,
+                (isBusy || encryptedNeedsPassword) && styles.disabledButton,
               ]}
               onPress={handleExtract}
-              disabled={state === 'extracting'}
+              disabled={isBusy || encryptedNeedsPassword}
             >
               <Text style={styles.actionButtonText}>
                 {state === 'extracting' ? 'Extracting...' : 'Extract'}
               </Text>
             </TouchableOpacity>
 
+            {state === 'extracting' ? (
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={handleCancelExtract}
+              >
+                <Text style={styles.cancelButtonText}>Cancel Extraction</Text>
+              </TouchableOpacity>
+            ) : null}
+
             <TouchableOpacity
               style={[
                 styles.actionButton,
-                state === 'validating' && styles.disabledButton,
+                (isBusy || encryptedNeedsPassword) && styles.disabledButton,
               ]}
               onPress={handleValidate}
-              disabled={state === 'validating'}
+              disabled={isBusy || encryptedNeedsPassword}
             >
               <Text style={styles.actionButtonText}>
                 {state === 'validating' ? 'Validating...' : 'Validate'}
@@ -439,8 +532,13 @@ export function OpenArchiveScreen() {
 
             {state !== 'idle' ? (
               <TouchableOpacity
-                style={styles.secondaryButton}
+                style={[
+                  styles.secondaryButton,
+                  isBusy && styles.disabledButton,
+                ]}
                 onPress={() => {
+                  extractTaskRef.current?.cancel()
+                  validateTaskRef.current?.cancel()
                   reader.dispose()
                   setReader(null)
                   setEntryPage(null)
@@ -451,6 +549,7 @@ export function OpenArchiveScreen() {
                   setShowEntries(false)
                   setState('idle')
                 }}
+                disabled={isBusy}
               >
                 <Text style={styles.secondaryButtonText}>Close Archive</Text>
               </TouchableOpacity>
@@ -550,6 +649,20 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.5,
   },
+  cancelButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#FF9F0A',
+  },
+  cancelButtonText: {
+    color: '#B86200',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   secondaryButton: {
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
@@ -580,6 +693,33 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5EA',
     marginBottom: 10,
+  },
+  fieldHelp: {
+    color: '#8E8E93',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: -4,
+    marginBottom: 10,
+  },
+  warningCard: {
+    backgroundColor: '#FFF8E8',
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#FFE0A3',
+  },
+  warningTitle: {
+    color: '#6B4A00',
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  warningText: {
+    color: '#6B4A00',
+    fontSize: 13,
+    lineHeight: 18,
   },
   resultCard: {
     backgroundColor: '#FFFFFF',

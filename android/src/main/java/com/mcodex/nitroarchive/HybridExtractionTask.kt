@@ -60,11 +60,14 @@ class HybridExtractionTask(
         )
 
         val plan = if (!request.entries.isNullOrEmpty()) {
-            val descriptors = request.entries.mapNotNull { session.entry(it) }
-            com.mcodex.nitroarchive.application.ExtractionPlan(
-                entries = descriptors,
-                totalUncompressedBytes = descriptors.sumOf { it.uncompressedSize },
-                totalEntries = descriptors.size
+            val descriptors = request.entries.map { path ->
+                session.entry(path) ?: throw ArchiveDomainError.EntryNotFound(path)
+            }
+            ExtractionPlanner().plan(
+                allEntries = descriptors,
+                include = null,
+                exclude = null,
+                limits = limits
             )
         } else {
             val planner = ExtractionPlanner()

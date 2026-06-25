@@ -1,6 +1,9 @@
 package com.mcodex.nitroarchive.application
 
 import com.mcodex.nitroarchive.application.ports.EntryDescriptor
+import com.mcodex.nitroarchive.domain.ArchiveDomainError
+import com.mcodex.nitroarchive.domain.ArchivePath
+import com.mcodex.nitroarchive.domain.DuplicatePathPolicy
 import com.mcodex.nitroarchive.domain.ExtractionLimits
 
 data class ExtractionPlan(
@@ -17,7 +20,22 @@ class ExtractionPlanner {
         exclude: List<String>?,
         limits: ExtractionLimits = ExtractionLimits.DEFAULT
     ): ExtractionPlan {
-        var filtered = allEntries
+        val duplicatePaths = DuplicatePathPolicy()
+        var filtered = allEntries.map { entry ->
+            val path = try {
+                ArchivePath.fromRaw(entry.path)
+            } catch (e: IllegalArgumentException) {
+                throw ArchiveDomainError.PathTraversal(entry.path)
+            }
+            if (path.depth > limits.maxPathDepth) {
+                throw ArchiveDomainError.ExtractionLimitExceeded("maxPathDepth", "${path.depth}")
+            }
+            if (path.normalized.toByteArray(Charsets.UTF_8).size > limits.maxPathBytes) {
+                throw ArchiveDomainError.ExtractionLimitExceeded("maxPathBytes", "${path.normalized.toByteArray(Charsets.UTF_8).size}")
+            }
+            duplicatePaths.check(path.normalized)
+            entry.copy(path = path.normalized)
+        }
 
         if (!include.isNullOrEmpty()) {
             filtered = filtered.filter { entry ->
@@ -32,7 +50,31 @@ class ExtractionPlanner {
         }
 
         if (filtered.size > limits.maxEntries) {
-            filtered = filtered.take(limits.maxEntries)
+            throw ArchiveDomainError.ExtractionLimitExceeded(
+                limit = "maxEntries",
+                value = "${filtered.size}"
+            )
+        }
+
+        filtered.forEach { entry ->
+            if (entry.uncompressedSize > limits.maxEntryUncompressedBytes) {
+                throw ArchiveDomainError.ExtractionLimitExceeded(
+                    limit = "maxEntryUncompressedBytes",
+                    value = "${entry.uncompressedSize}"
+                )
+            }
+            if (entry.compressedSize == 0L && entry.uncompressedSize > 0L) {
+                throw ArchiveDomainError.ExtractionLimitExceeded(
+                    limit = "maxCompressionRatio",
+                    value = "infinite"
+                )
+            }
+            if (entry.compressedSize > 0L && entry.uncompressedSize / entry.compressedSize > limits.maxCompressionRatio) {
+                throw ArchiveDomainError.ExtractionLimitExceeded(
+                    limit = "maxCompressionRatio",
+                    value = "${entry.uncompressedSize / entry.compressedSize}"
+                )
+            }
         }
 
         val totalBytes = filtered.sumOf { it.uncompressedSize }

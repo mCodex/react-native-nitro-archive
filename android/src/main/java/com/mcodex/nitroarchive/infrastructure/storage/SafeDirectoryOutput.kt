@@ -9,7 +9,8 @@ class SafeDirectoryOutput(private val baseDir: File) : DirectoryOutput {
 
     private fun validatePath(path: String) {
         val resolved = File(baseDir, path).canonicalFile
-        if (!resolved.path.startsWith(baseDir.canonicalPath)) {
+        val basePath = baseDir.canonicalFile.path
+        if (resolved.path != basePath && !resolved.path.startsWith("$basePath${File.separator}")) {
             throw ArchiveDomainError.PathTraversal(path)
         }
     }

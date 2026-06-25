@@ -7,24 +7,24 @@ ZIP archive creation, inspection, validation, reading, and extraction for React 
 [![React Native](https://img.shields.io/badge/react--native-0.76%2B-61dafb.svg)](https://reactnative.dev/)
 [![Nitro Modules](https://img.shields.io/badge/nitro--modules-0.35%2B-orange.svg)](https://github.com/mrousavy/nitro)
 
-## Status
+## 📊 Status
 
 This package is ZIP-first. It does not try to be a general filesystem wrapper.
 
 | Area | Status |
 | --- | --- |
-| ZIP reading | In progress |
-| ZIP64 metadata | In progress |
-| ZIP creation | In progress |
-| Selective extraction | In progress |
-| Progress and cancellation | In progress |
-| Password ZIP support | Not stable |
-| TAR, RAR, 7z | Out of scope |
+| ZIP reading | 🚧 In progress |
+| ZIP64 metadata | 🚧 In progress |
+| ZIP creation | 🚧 In progress |
+| Selective extraction | 🚧 In progress |
+| Progress and cancellation | 🚧 In progress |
+| Password ZIP support | 🚧 In progress: ZipCrypto and AES-256 creation, password read/extract/validate |
+| TAR, RAR, 7z | ❌ Out of scope |
 
 > [!WARNING]
 > Treat the current package as pre-1.0. APIs can still change while iOS, Android, and TypeScript behavior are brought into parity.
 
-## Requirements
+## 📋 Requirements
 
 - React Native 0.76 or newer
 - Node.js 18 or newer
@@ -32,7 +32,7 @@ This package is ZIP-first. It does not try to be a general filesystem wrapper.
 - iOS 15 or newer
 - Android API level supported by your React Native version
 
-## Installation
+## 📦 Installation
 
 ```sh
 yarn add @mcodex/react-native-nitro-archive react-native-nitro-modules
@@ -49,7 +49,7 @@ cd ios
 bundle exec pod install
 ```
 
-## Quick Start
+## 🚀 Quick Start
 
 Create a ZIP:
 
@@ -127,12 +127,36 @@ try {
 }
 ```
 
-## Security
+Create a password-protected ZIP:
+
+```ts
+import {
+  bufferEntry,
+  createArchive,
+  fileDestination,
+} from '@mcodex/react-native-nitro-archive'
+
+const task = createArchive({
+  destination: fileDestination('/tmp/private.zip'),
+  entries: [bufferEntry(new TextEncoder().encode('secret').buffer, 'secret.txt')],
+  encryption: {
+    method: 'aes-256',
+    password: 'correct horse battery staple',
+  },
+})
+
+await task.start()
+```
+
+## 🔒 Security
 
 Archive extraction is a trust boundary. This package rejects unsafe archive paths by default and keeps extraction bounded.
 
 > [!IMPORTANT]
 > ZIP bombs are valid ZIP files designed to exhaust disk, memory, or CPU. Set extraction limits for user-provided archives and keep the defaults unless you have measured input sizes.
+
+> [!WARNING]
+> Passwords do not make archives safe. Encrypted ZIPs can still contain bombs, traversal paths, duplicate outputs, unsafe links, and corrupted entries. The same limits and path checks apply before and during password extraction.
 
 Default protections include:
 
@@ -141,13 +165,14 @@ Default protections include:
 - Reject duplicate normalized output paths by default.
 - Reject special files and unsafe links by default.
 - Enforce entry count, per-entry size, total uncompressed size, path depth, and path byte limits.
+- Enforce compression-ratio limits for encrypted and unencrypted entries.
 - Keep progress listeners scoped to one task instead of using a global event emitter.
 - Avoid base64 in the public API.
 
 > [!CAUTION]
 > Do not pass archives from untrusted users to extraction with relaxed limits. Validate and inspect first, then extract only the paths you need.
 
-## API Shape
+## 🛠️ API Shape
 
 The public TypeScript API uses named constructors instead of raw objects:
 
@@ -164,25 +189,27 @@ The public TypeScript API uses named constructors instead of raw objects:
 
 Imports are side-effect free. The native Nitro module is created lazily on the first runtime operation.
 
-## Platform Notes
+## 📱 Platform Notes
 
-### iOS
+### 🍎 iOS
 
 - Uses Swift for domain and application code.
 - Uses SSZipArchive/minizip for ZIP operations.
+- Supports password read, extraction, validation, and creation for advertised methods.
 - Supports local file paths.
 - Security-scoped URL and coordinated access work is still being stabilized.
 
-### Android
+### 🤖 Android
 
 - Uses Kotlin for domain and application code.
 - Uses Zip4j for ZIP operations.
+- Supports password read, extraction, validation, and creation for advertised methods.
 - Supports local file paths and Android `content://` work is being stabilized.
 
 > [!NOTE]
-> Password-protected ZIP files are not part of the stable surface yet. They will be documented after iOS and Android pass the same interoperability and security tests.
+> Check `getArchiveCapabilities().encryptionMethods` before offering password ZIP creation in your app. Creation is intentionally limited to methods supported on both native engines; TAR, RAR, and 7z remain out of scope.
 
-## Development
+## 💻 Development
 
 ```sh
 yarn install
@@ -205,7 +232,7 @@ xcodebuild \
   build
 ```
 
-## Contributing
+## 🤝 Contributing
 
 Keep changes ZIP-focused. Public API changes start in TypeScript, then Swift and Kotlin follow the same contract.
 
@@ -213,6 +240,6 @@ Do not edit generated Nitro files by hand. Change the specs, regenerate, and com
 
 Security fixes are welcome. If you find a path traversal, symlink, ZIP bomb, permission, or data-loss issue, open a private report when possible.
 
-## License
+## 📄 License
 
 MIT

@@ -393,6 +393,36 @@ describe('mapCreationOptions', () => {
     expect(result.destinationKind).toBe('uri')
     expect(result.destinationUri).toBe('content://write/out.zip')
   })
+
+  it('maps supported zip encryption options', () => {
+    const result = mapCreationOptions({
+      destination: { kind: 'file', path: '/tmp/out.zip' },
+      entries: [],
+      encryption: { method: 'aes-256', password: 'secret' },
+    })
+    expect(result.encryptionMethod).toBe('aes-256')
+    expect(result.encryptionPassword).toBe('secret')
+  })
+
+  it('requires a password for zip encryption', () => {
+    expect(() =>
+      mapCreationOptions({
+        destination: { kind: 'file', path: '/tmp/out.zip' },
+        entries: [],
+        encryption: { method: 'zip-crypto' },
+      }),
+    ).toThrow(ArchiveError)
+  })
+
+  it('rejects encryption methods not creatable on both platforms', () => {
+    expect(() =>
+      mapCreationOptions({
+        destination: { kind: 'file', path: '/tmp/out.zip' },
+        entries: [],
+        encryption: { method: 'aes-128', password: 'secret' },
+      }),
+    ).toThrow(ArchiveError)
+  })
 })
 
 describe('mapExtractionResult', () => {

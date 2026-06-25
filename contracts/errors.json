@@ -6,7 +6,7 @@
     "E_INVALID_ARCHIVE": "The archive file is corrupt or not a valid archive.",
     "E_UNSUPPORTED_FORMAT": "The archive format is not supported.",
     "E_UNSUPPORTED_COMPRESSION": "The compression method is not supported.",
-    "E_UNSUPPORTED_ENCRYPTION": "Encryption is not yet implemented in this version.",
+    "E_UNSUPPORTED_ENCRYPTION": "The archive encryption method is not supported by this platform or operation.",
     "E_ENCRYPTED_ARCHIVE": "The archive contains encrypted entries.",
     "E_PASSWORD_REQUIRED": "A password is required to access encrypted entries.",
     "E_BAD_PASSWORD": "The provided password is incorrect.",

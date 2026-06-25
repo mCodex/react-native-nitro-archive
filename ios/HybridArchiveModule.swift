@@ -17,7 +17,7 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
       readableFormats: ["zip"],
       writableFormats: ["zip"],
       compressionMethods: ["store", "deflate"],
-      encryptionMethods: ["none"],
+      encryptionMethods: ["none", "zip-crypto", "aes-256"],
       supportsFilePaths: true,
       supportsInputUris: true,
       supportsOutputUris: false,

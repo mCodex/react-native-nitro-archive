@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type {
@@ -16,6 +17,7 @@ import type {
   CreationResult,
   ZipCompressionMethod,
   CompressionProfile,
+  ZipEncryptionMethod,
 } from '@mcodex/react-native-nitro-archive'
 import {
   createArchive,
@@ -43,14 +45,64 @@ function formatBytes(bytes: bigint | number): string {
 
 const compressionMethods: ZipCompressionMethod[] = ['store', 'deflate']
 const compressionProfiles: CompressionProfile[] = ['fastest', 'balanced', 'smallest']
+const encryptionMethods: ZipEncryptionMethod[] = ['none', 'zip-crypto', 'aes-256']
+
+function labelFor(value: string): string {
+  switch (value) {
+    case 'zip-crypto':
+      return 'ZipCrypto'
+    case 'aes-256':
+      return 'AES-256'
+    case 'none':
+      return 'None'
+    default:
+      return value.charAt(0).toUpperCase() + value.slice(1)
+  }
+}
+
+function OptionGrid<T extends string>({
+  value,
+  values,
+  onChange,
+}: {
+  value: T
+  values: readonly T[]
+  onChange: (value: T) => void
+}) {
+  return (
+    <View style={styles.optionGrid}>
+      {values.map((item) => {
+        const selected = value === item
+        return (
+          <TouchableOpacity
+            key={item}
+            style={[styles.optionCard, selected && styles.optionCardSelected]}
+            onPress={() => onChange(item)}
+            activeOpacity={0.78}
+          >
+            <View style={[styles.optionDot, selected && styles.optionDotSelected]}>
+              {selected ? <View style={styles.optionDotInner} /> : null}
+            </View>
+            <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>
+              {labelFor(item)}
+            </Text>
+          </TouchableOpacity>
+        )
+      })}
+    </View>
+  )
+}
 
 export function CreateArchiveScreen() {
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
   const [destinationPath, setDestinationPath] = useState('')
   const [bufferFileName, setBufferFileName] = useState('hello.txt')
   const [bufferContent, setBufferContent] = useState('Hello from Nitro Archive!')
   const [selectedCompression, setSelectedCompression] = useState<ZipCompressionMethod>('deflate')
   const [selectedProfile, setSelectedProfile] = useState<CompressionProfile>('balanced')
+  const [selectedEncryption, setSelectedEncryption] = useState<ZipEncryptionMethod>('none')
+  const [password, setPassword] = useState('')
   const [state, setState] = useState<'idle' | 'creating' | 'done' | 'error'>('idle')
   const [progress, setProgress] = useState<ArchiveProgress | null>(null)
   const [result, setResult] = useState<CreationResult | null>(null)
@@ -60,6 +112,10 @@ export function CreateArchiveScreen() {
   const handleCreate = useCallback(async () => {
     if (!destinationPath.trim()) {
       Alert.alert('Missing Path', 'Enter an absolute destination path.')
+      return
+    }
+    if (selectedEncryption !== 'none' && !password.trim()) {
+      Alert.alert('Missing Password', 'Enter a password or choose no encryption.')
       return
     }
 
@@ -91,6 +147,10 @@ export function CreateArchiveScreen() {
           profile: selectedProfile,
           storeAlreadyCompressed: true,
         },
+        encryption: selectedEncryption === 'none' ? undefined : {
+          method: selectedEncryption,
+          password,
+        },
       }
 
       const task = createArchive(options)
@@ -114,105 +174,115 @@ export function CreateArchiveScreen() {
       setError(message)
       setState('error')
     }
-  }, [destinationPath, bufferFileName, bufferContent, selectedCompression, selectedProfile])
+  }, [
+    destinationPath,
+    bufferFileName,
+    bufferContent,
+    selectedCompression,
+    selectedProfile,
+    selectedEncryption,
+    password,
+  ])
 
   return (
     <ScrollView
       style={[styles.container, { paddingTop: insets.top }]}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        width >= 720 && styles.contentWide,
+      ]}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.sectionTitle}>Destination</Text>
-
-      <Text style={styles.inputLabel}>Archive Path</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="/tmp/my-archive.zip"
-        placeholderTextColor="#C7C7CC"
-        value={destinationPath}
-        onChangeText={setDestinationPath}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      <Text style={styles.sectionTitle}>Entries</Text>
-
-      <Text style={styles.inputLabel}>Buffer File Name</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="hello.txt"
-        placeholderTextColor="#C7C7CC"
-        value={bufferFileName}
-        onChangeText={setBufferFileName}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      <Text style={styles.inputLabel}>Buffer Content</Text>
-      <TextInput
-        style={[styles.input, styles.multilineInput]}
-        placeholder="File content..."
-        placeholderTextColor="#C7C7CC"
-        value={bufferContent}
-        onChangeText={setBufferContent}
-        multiline
-        numberOfLines={3}
-      />
-
-      <Text style={styles.sectionTitle}>Compression Method</Text>
-      <View style={styles.radioGroup}>
-        {compressionMethods.map((method) => (
-          <TouchableOpacity
-            key={method}
-            style={[
-              styles.radioOption,
-              selectedCompression === method && styles.radioOptionSelected,
-            ]}
-            onPress={() => setSelectedCompression(method)}
-          >
-            <View style={styles.radioCircle}>
-              {selectedCompression === method ? (
-                <View style={styles.radioCircleFilled} />
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.radioLabel,
-                selectedCompression === method && styles.radioLabelSelected,
-              ]}
-            >
-              {method.charAt(0).toUpperCase() + method.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.hero}>
+        <Text style={styles.eyebrow}>ZIP builder</Text>
+        <Text style={styles.title}>Create archive</Text>
+        <Text style={styles.subtitle}>
+          Package one buffer entry, choose compression, and test encrypted ZIP creation.
+        </Text>
       </View>
 
-      <Text style={styles.sectionTitle}>Compression Profile</Text>
-      <View style={styles.radioGroup}>
-        {compressionProfiles.map((profile) => (
-          <TouchableOpacity
-            key={profile}
-            style={[
-              styles.radioOption,
-              selectedProfile === profile && styles.radioOptionSelected,
-            ]}
-            onPress={() => setSelectedProfile(profile)}
-          >
-            <View style={styles.radioCircle}>
-              {selectedProfile === profile ? (
-                <View style={styles.radioCircleFilled} />
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.radioLabel,
-                selectedProfile === profile && styles.radioLabelSelected,
-              ]}
-            >
-              {profile.charAt(0).toUpperCase() + profile.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      <View style={styles.panel}>
+        <Text style={styles.sectionTitle}>Destination</Text>
+        <Text style={styles.inputLabel}>Archive path or URI</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="/tmp/my-archive.zip"
+          placeholderTextColor="#9CA3AF"
+          value={destinationPath}
+          onChangeText={setDestinationPath}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+      </View>
+
+      <View style={styles.panel}>
+        <Text style={styles.sectionTitle}>Entry</Text>
+        <Text style={styles.inputLabel}>Buffer file name</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="hello.txt"
+          placeholderTextColor="#9CA3AF"
+          value={bufferFileName}
+          onChangeText={setBufferFileName}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        <Text style={styles.inputLabel}>Buffer content</Text>
+        <TextInput
+          style={[styles.input, styles.multilineInput]}
+          placeholder="File content..."
+          placeholderTextColor="#9CA3AF"
+          value={bufferContent}
+          onChangeText={setBufferContent}
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+
+      <View style={styles.panel}>
+        <Text style={styles.sectionTitle}>Compression</Text>
+        <Text style={styles.inputLabel}>Method</Text>
+        <OptionGrid
+          value={selectedCompression}
+          values={compressionMethods}
+          onChange={setSelectedCompression}
+        />
+
+        <Text style={styles.inputLabel}>Profile</Text>
+        <OptionGrid
+          value={selectedProfile}
+          values={compressionProfiles}
+          onChange={setSelectedProfile}
+        />
+      </View>
+
+      <View style={styles.panel}>
+        <Text style={styles.sectionTitle}>Password</Text>
+        <Text style={styles.inputLabel}>Encryption</Text>
+        <OptionGrid
+          value={selectedEncryption}
+          values={encryptionMethods}
+          onChange={setSelectedEncryption}
+        />
+        {selectedEncryption !== 'none' ? (
+          <>
+            <Text style={styles.inputLabel}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Archive password"
+              placeholderTextColor="#9CA3AF"
+              value={password}
+              onChangeText={setPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+          </>
+        ) : null}
+        <Text style={styles.helperText}>
+          Encrypted archives still use the same size, path, and bomb limits.
+        </Text>
       </View>
 
       {progress ? (
@@ -262,7 +332,7 @@ export function CreateArchiveScreen() {
 
       {state === 'creating' ? (
         <View style={styles.creatingOverlay}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color="#1D7A8C" />
           <Text style={styles.creatingText}>Creating archive...</Text>
         </View>
       ) : null}
@@ -300,97 +370,148 @@ export function CreateArchiveScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#F5F7FA',
   },
   content: {
-    padding: 16,
+    padding: 18,
     paddingBottom: 40,
   },
-  sectionTitle: {
-    fontSize: 17,
+  contentWide: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+  },
+  hero: {
+    paddingTop: 8,
+    paddingBottom: 18,
+  },
+  eyebrow: {
+    color: '#52677A',
+    fontSize: 12,
     fontWeight: '700',
-    color: '#1C1C1E',
-    marginTop: 20,
+    letterSpacing: 0,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  title: {
+    color: '#101820',
+    fontSize: 30,
+    fontWeight: '800',
     marginBottom: 8,
   },
+  subtitle: {
+    color: '#52677A',
+    fontSize: 15,
+    lineHeight: 21,
+  },
+  panel: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#DDE5EC',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#101820',
+    marginBottom: 12,
+  },
   inputLabel: {
-    fontSize: 14,
-    color: '#3C3C43',
-    fontWeight: '500',
+    fontSize: 13,
+    color: '#52677A',
+    fontWeight: '700',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     fontSize: 15,
-    color: '#1C1C1E',
+    color: '#101820',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    marginBottom: 8,
+    borderColor: '#DDE5EC',
+    marginBottom: 12,
   },
   multilineInput: {
     minHeight: 70,
     textAlignVertical: 'top',
   },
-  radioGroup: {
+  optionGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  radioOption: {
+  optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
-    flex: 1,
+    borderColor: '#DDE5EC',
+    minWidth: 132,
+    flexGrow: 1,
+    flexShrink: 1,
   },
-  radioOptionSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F0F8FF',
+  optionCardSelected: {
+    borderColor: '#1D7A8C',
+    backgroundColor: '#EAF7FA',
   },
-  radioCircle: {
+  optionDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#C7C7CC',
+    borderColor: '#9CA3AF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
-  radioCircleFilled: {
+  optionDotSelected: {
+    borderColor: '#1D7A8C',
+  },
+  optionDotInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#1D7A8C',
   },
-  radioLabel: {
+  optionLabel: {
+    flex: 1,
     fontSize: 14,
-    color: '#3C3C43',
-    fontWeight: '500',
+    color: '#334155',
+    fontWeight: '700',
+    lineHeight: 18,
   },
-  radioLabelSelected: {
-    color: '#007AFF',
+  optionLabelSelected: {
+    color: '#0F5E6D',
+  },
+  helperText: {
+    color: '#64748B',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: -2,
   },
   progressSection: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     marginVertical: 12,
+    borderWidth: 1,
+    borderColor: '#DDE5EC',
   },
   progressPhase: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#007AFF',
+    color: '#1D7A8C',
     marginBottom: 8,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   },
   progressText: {
     fontSize: 13,
@@ -399,16 +520,17 @@ const styles = StyleSheet.create({
   },
   resultCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 16,
     marginVertical: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#34C759',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    borderLeftColor: '#2FA36B',
+    borderTopWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderTopColor: '#DDE5EC',
+    borderRightColor: '#DDE5EC',
+    borderBottomColor: '#DDE5EC',
   },
   resultTitle: {
     fontSize: 17,
@@ -444,12 +566,12 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   createButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
+    backgroundColor: '#1D7A8C',
+    borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
-    shadowColor: '#007AFF',
+    shadowColor: '#1D7A8C',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
@@ -465,7 +587,7 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 10,
@@ -473,7 +595,7 @@ const styles = StyleSheet.create({
     borderColor: '#E5E5EA',
   },
   resetButtonText: {
-    color: '#007AFF',
+    color: '#1D7A8C',
     fontSize: 16,
     fontWeight: '600',
   },

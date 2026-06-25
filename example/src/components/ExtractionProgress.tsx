@@ -5,6 +5,7 @@ import { ProgressBar } from './ProgressBar'
 
 interface ExtractionProgressProps {
   progress: ArchiveProgress
+  title?: string
 }
 
 function formatBytes(bytes: bigint | undefined): string {
@@ -15,12 +16,19 @@ function formatBytes(bytes: bigint | undefined): string {
   return `${(Number(bytes) / 1073741824).toFixed(1)} GB`
 }
 
-export function ExtractionProgress({ progress }: ExtractionProgressProps) {
+export function ExtractionProgress({ progress, title = 'Progress' }: ExtractionProgressProps) {
   const percentage = progress.percentage ?? 0
+  const isWaitingForFirstEntry =
+    progress.phase === 'extracting' &&
+    progress.processedBytes === 0n &&
+    progress.processedEntries === 0
 
   return (
     <View style={styles.container}>
-      <Text style={styles.phaseText}>Phase: {progress.phase}</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.titleText}>{title}</Text>
+        <Text style={styles.phaseText}>{progress.phase}</Text>
+      </View>
       {progress.currentEntry ? (
         <Text style={styles.entryText} numberOfLines={1}>
           Entry: {progress.currentEntry}
@@ -36,6 +44,12 @@ export function ExtractionProgress({ progress }: ExtractionProgressProps) {
         <Text style={styles.label}>{percentage.toFixed(0)}%</Text>
       </View>
       <ProgressBar progress={percentage} />
+      {isWaitingForFirstEntry ? (
+        <Text style={styles.waitingText}>
+          Preparing the first entry. Encrypted archives may not report byte
+          totals until data is decrypted.
+        </Text>
+      ) : null}
       {progress.processedEntries > 0 ? (
         <Text style={styles.label}>
           Entries: {progress.processedEntries}
@@ -62,13 +76,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5EA',
   },
+  headerRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
+  titleText: {
+    color: '#1C1C1E',
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '700',
+  },
   phaseText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#007AFF',
-    marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0,
   },
   entryText: {
     fontSize: 14,
@@ -83,5 +109,11 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     color: '#8E8E93',
+  },
+  waitingText: {
+    color: '#8E8E93',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
   },
 })

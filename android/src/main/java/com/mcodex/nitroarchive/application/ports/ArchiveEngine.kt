@@ -1,10 +1,12 @@
 package com.mcodex.nitroarchive.application.ports
 
 import com.mcodex.nitroarchive.domain.ProgressSnapshot
+import java.io.File
 
 interface ArchiveEngine {
     suspend fun inspect(input: ArchiveInput): ArchiveInspection
     suspend fun readEntry(session: ArchiveEngineSession, path: String, limit: Long, password: String?): ByteArray
+    suspend fun extractEntry(session: ArchiveEngineSession, path: String, destination: File, limit: Long, password: String?): Long
     suspend fun createArchive(
         plan: CreationPlan,
         output: ArchiveOutput,

@@ -20,6 +20,21 @@ final class ExtractionPlanner {
       let normalizedPath = try ArchivePath(raw: entry.path)
       _ = try duplicateTracker.check(normalizedPath.normalized)
 
+      guard normalizedPath.components.count <= limits.maxPathDepth else {
+        throw ArchiveDomainError.extractionLimitExceeded(
+          limit: "maxPathDepth",
+          value: "\(normalizedPath.components.count)"
+        )
+      }
+
+      let pathBytes = normalizedPath.normalized.lengthOfBytes(using: .utf8)
+      guard pathBytes <= limits.maxPathBytes else {
+        throw ArchiveDomainError.extractionLimitExceeded(
+          limit: "maxPathBytes",
+          value: "\(pathBytes)"
+        )
+      }
+
       if let include = include {
         let matched = include.contains { pattern in
           fnmatch(pattern, normalizedPath.normalized, 0) == 0
@@ -41,7 +56,28 @@ final class ExtractionPlanner {
         )
       }
 
-      totalBytes += entry.uncompressedSize
+      if entry.compressedSize == 0 && entry.uncompressedSize > 0 {
+        throw ArchiveDomainError.extractionLimitExceeded(
+          limit: "maxCompressionRatio",
+          value: "infinite"
+        )
+      }
+
+      if entry.compressedSize > 0 && entry.uncompressedSize / entry.compressedSize > UInt64(limits.maxCompressionRatio) {
+        throw ArchiveDomainError.extractionLimitExceeded(
+          limit: "maxCompressionRatio",
+          value: "\(entry.uncompressedSize / entry.compressedSize)"
+        )
+      }
+
+      let (newTotalBytes, overflow) = totalBytes.addingReportingOverflow(entry.uncompressedSize)
+      guard !overflow else {
+        throw ArchiveDomainError.extractionLimitExceeded(
+          limit: "maxTotalUncompressedBytes",
+          value: "overflow"
+        )
+      }
+      totalBytes = newTotalBytes
       guard totalBytes <= limits.maxTotalUncompressedBytes else {
         throw ArchiveDomainError.extractionLimitExceeded(
           limit: "maxTotalUncompressedBytes",
