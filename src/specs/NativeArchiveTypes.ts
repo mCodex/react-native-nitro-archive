@@ -188,6 +188,8 @@ export interface NativeCreationRequest {
   preserveTimestamps?: boolean
   maxInMemoryBytes?: UInt64
   progressIntervalMs?: number
+  encryptionMethod?: string
+  encryptionPassword?: string
 }
 
 export interface NativeEntryInput {

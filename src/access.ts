@@ -29,9 +29,10 @@ export async function checkArchiveAccess(
       const result = await module.checkUriAccess(uri, mode)
       return mapAccessReport(result, mode)
     }
-    case 'buffer':
+    case 'buffer': {
+      const platform = module.getCapabilities().platform as 'ios' | 'android'
       return {
-        platform: 'ios' as const,
+        platform,
         mode,
         accessible: true,
         readable: true,
@@ -42,6 +43,7 @@ export async function checkArchiveAccess(
         requiredManifestPermissions: [],
         recoveryAction: 'none' as const,
       }
+    }
     default:
       throw new TypeError(`Unknown target kind: ${kind}`)
   }

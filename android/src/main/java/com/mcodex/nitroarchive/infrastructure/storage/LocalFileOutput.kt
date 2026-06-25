@@ -13,11 +13,20 @@ class LocalFileOutput(private val path: String) : ArchiveOutput {
             file.parentFile?.mkdirs()
             outputStream = FileOutputStream(file)
         }
-        outputStream?.write(data)
+        try {
+            outputStream?.write(data)
+        } catch (e: Exception) {
+            try { outputStream?.close() } catch (_: Exception) {}
+            outputStream = null
+            throw e
+        }
     }
 
     override suspend fun finalize() {
-        outputStream?.close()
-        outputStream = null
+        try {
+            outputStream?.close()
+        } finally {
+            outputStream = null
+        }
     }
 }

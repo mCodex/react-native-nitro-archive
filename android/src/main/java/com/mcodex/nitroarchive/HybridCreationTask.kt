@@ -61,7 +61,9 @@ class HybridCreationTask(
                 entries = entryInputs,
                 compressionProfile = request.compressionProfile,
                 compressionLevel = request.compressionLevel?.toInt(),
-                storeAlreadyCompressed = request.storeAlreadyCompressed ?: true
+                storeAlreadyCompressed = request.storeAlreadyCompressed ?: true,
+                encryptionMethod = request.encryptionMethod,
+                encryptionPassword = request.encryptionPassword
             )
 
             val output = LocalFileOutput(path = destinationPath)
@@ -85,7 +87,6 @@ class HybridCreationTask(
             )
 
             emitProgress(phase = "finalizing")
-            output.finalize()
 
             val duration = System.currentTimeMillis() - startTime
             stateMachine.succeed()
@@ -133,8 +134,8 @@ class HybridCreationTask(
         val snapshot = NativeProgress(
             operationId = operationId,
             phase = phase,
-            processedBytes = processedBytes.toULong(),
-            totalBytes = totalBytes?.toULong(),
+            processedBytes = processedBytes,
+            totalBytes = totalBytes,
             processedEntries = processedEntries,
             totalEntries = totalEntries,
             currentEntry = currentEntry,

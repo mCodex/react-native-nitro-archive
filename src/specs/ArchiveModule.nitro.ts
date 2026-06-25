@@ -8,7 +8,7 @@ import type {
   NativeUriOpenOptions,
   NativeCreationRequest,
   NativeArchiveFailure,
-} from './NativeArchiveTypes.nitro'
+} from './NativeArchiveTypes'
 import type { NativeArchiveReader } from './NativeArchiveReader.nitro'
 import type { NativeCreationTask } from './NativeArchiveTasks.nitro'
 

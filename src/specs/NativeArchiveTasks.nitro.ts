@@ -4,7 +4,7 @@ import type {
   NativeExtractionResult,
   NativeCreationResult,
   NativeValidationResult,
-} from './NativeArchiveTypes.nitro'
+} from './NativeArchiveTypes'
 
 export interface NativeCreationTask
   extends HybridObject<{ ios: 'swift'; android: 'kotlin' }> {

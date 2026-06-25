@@ -1,11 +1,10 @@
 import Foundation
-import ZIPFoundation
 
-struct ZIPFoundationMapper {
+struct ArchiveErrorMapper {
   static func mapError(_ error: Error) -> ArchiveDomainError {
     if let archiveDomainError = error as? ArchiveDomainError {
       return archiveDomainError
     }
-    return .ioError("ZIPFoundation error: \(error.localizedDescription)")
+    return .ioError("Archive error: \(error.localizedDescription)")
   }
 }

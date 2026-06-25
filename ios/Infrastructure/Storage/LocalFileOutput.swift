@@ -10,8 +10,12 @@ final class LocalFileOutput: ArchiveOutput {
 
   func write(_ data: Data) async throws {
     if fileHandle == nil {
-      FileManager.default.createFile(atPath: path, contents: nil)
-      fileHandle = try FileHandle(forWritingTo: URL(fileURLWithPath: path))
+      let url = URL(fileURLWithPath: path)
+      let parentDir = url.deletingLastPathComponent()
+      try FileManager.default.createDirectory(at: parentDir, withIntermediateDirectories: true)
+      FileManager.default.createFile(atPath: path, contents: Data())
+      fileHandle = try FileHandle(forWritingTo: url)
+      try fileHandle?.truncate(atOffset: 0)
     }
     try fileHandle?.write(contentsOf: data)
   }

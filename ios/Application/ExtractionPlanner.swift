@@ -18,7 +18,7 @@ final class ExtractionPlanner {
 
     for entry in entries {
       let normalizedPath = try ArchivePath(raw: entry.path)
-      try duplicateTracker.check(normalizedPath.normalized)
+      _ = try duplicateTracker.check(normalizedPath.normalized)
 
       if let include = include {
         let matched = include.contains { pattern in

@@ -67,6 +67,7 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
       var checkedUncompressedBytes: UInt64 = 0
       var encryptedEntries = 0
       let startTime = CFAbsoluteTimeGetCurrent()
+      let maxChecksumBytes: UInt64 = 64 * 1024 * 1024
 
       let entriesToValidate = scanAllEntries ? entries : entries.filter { $0.encrypted }
 
@@ -78,9 +79,21 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
         }
 
         if verifyChecksums && !entry.encrypted {
+          guard entry.uncompressedSize <= maxChecksumBytes else {
+            issues.append(NativeArchiveIssue(
+              code: "E_ARCHIVE_TOO_LARGE",
+              severity: "warning",
+              message: "Checksum validation skipped for large entry: \(entry.path)",
+              entryPath: entry.path,
+              entryIndex: Double(index)
+            ))
+            checkedEntries += 1
+            continue
+          }
+
           do {
             let maxBytes = max(entry.uncompressedSize, 1)
-            let limit = min(maxBytes, 5_368_709_12)
+            let limit = min(maxBytes, maxChecksumBytes)
             _ = try await self.engine.readEntry(
               session: self.session,
               path: entry.path,
@@ -125,7 +138,7 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
       self.cachedState = "succeeded"
 
       let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-      let isValid = issues.isEmpty
+      let isValid = !issues.contains { $0.severity == "error" }
 
       self.emitProgress(phase: "finalizing", processedBytes: checkedUncompressedBytes,
                         processedEntries: checkedEntries, currentEntry: nil,

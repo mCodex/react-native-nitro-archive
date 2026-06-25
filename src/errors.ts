@@ -60,13 +60,3 @@ export class ArchiveError extends Error {
 export function isArchiveError(error: unknown): error is ArchiveError {
   return error instanceof ArchiveError
 }
-
-export interface NativeArchiveFailure {
-  readonly code: ArchiveErrorCode
-  readonly message: string
-  readonly operationId?: string
-  readonly entryPath?: string
-  readonly source?: string
-  readonly destination?: string
-  readonly nativeCode?: number
-}

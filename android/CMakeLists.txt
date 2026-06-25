@@ -8,6 +8,11 @@ set (CMAKE_CXX_STANDARD 20)
 # Enable Raw Props parsing in react-native (for Nitro Views)
 add_compile_options(-DRN_SERIALIZABLE_STATE=1)
 
+# The Android NDK defines ANDROID as a macro, but the generated
+# NativePlatform.hpp uses ANDROID as an enum value. Undefine it
+# to avoid the collision in all compilation units.
+add_compile_options(-UANDROID)
+
 # Define C++ library and add all sources
 add_library(${PACKAGE_NAME} SHARED
         src/main/cpp/cpp-adapter.cpp

@@ -48,7 +48,7 @@ concurrency:
 jobs:
   build:
     name: Build iOS Example App
-    runs-on: macOS-15
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -94,6 +94,6 @@ jobs:
             -scheme NitroArchiveExample \
             -sdk iphonesimulator \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
             build \
             CODE_SIGNING_ALLOWED=NO | xcpretty

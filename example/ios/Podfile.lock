@@ -3,7 +3,7 @@ PODS:
   - hermes-engine (250829098.0.14):
     - hermes-engine/Pre-built (= 250829098.0.14)
   - hermes-engine/Pre-built (250829098.0.14)
-  - NitroModules (0.35.9):
+  - NitroModules (0.35.10):
     - hermes-engine
     - RCTRequired
     - RCTTypeSafety
@@ -1451,7 +1451,7 @@ PODS:
     - Yoga
   - react-native-nitro-archive (0.1.0):
     - NitroModules
-    - ZIPFoundation (~> 0.9)
+    - SSZipArchive (~> 2.4)
   - react-native-safe-area-context (5.8.0):
     - hermes-engine
     - RCTRequired
@@ -1965,8 +1965,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - SSZipArchive (2.4.3)
   - Yoga (0.0.0)
-  - ZIPFoundation (0.9.20)
 
 DEPENDENCIES:
   - FBLazyVector (from `../../node_modules/react-native/Libraries/FBLazyVector`)
@@ -2052,7 +2052,7 @@ DEPENDENCIES:
 
 SPEC REPOS:
   trunk:
-    - ZIPFoundation
+    - SSZipArchive
 
 EXTERNAL SOURCES:
   FBLazyVector:
@@ -2218,7 +2218,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   FBLazyVector: b3e7ad108f0d882e30445c5527d774e3fd432f3d
   hermes-engine: 4a1ebbdbb49e89d899f323b0d620627424872610
-  NitroModules: 16bc17a076b12304d608f7c915b9d321f56dfc19
+  NitroModules: 994eaa7fc39d1fb4b76bb61054312c9796c4a649
   RCTDeprecation: 2a74a2c57675e64419bd89078efde81f7c1de90b
   RCTRequired: 30451112e6fef4e6f31b4e7eee0845156e35e4b0
   RCTSwiftUI: 5aaf0b07e747ba749dc6acc94d8bd41eea4b570f
@@ -2256,7 +2256,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: ce449ccdf3b80384415b925606be8a4bdcfc65d3
   React-microtasksnativemodule: 2eb3f49d0d8e77b5343455eccd057010b8d38b6b
   React-mutationobservernativemodule: f0a0d5ae9b51caf7becbeabf836d716cfedb6bf2
-  react-native-nitro-archive: f2f019e1b2322c4ed877d232cc05e8d0da1e2268
+  react-native-nitro-archive: fadabce4ef857b38dd9fedda82eec9a39d5e62f1
   react-native-safe-area-context: fb5c8ee9f6dd62ef710611b3d370c501f42a4ac0
   React-NativeModulesApple: a092d89b58f635ebfab88048b0eda9fb516819fd
   React-networking: 968bbbe73590149feb1e72b2af4f6a68e4796ece
@@ -2294,8 +2294,8 @@ SPEC CHECKSUMS:
   ReactCommon: d5c1bb4427bf51c443de5926aac332c89ddd9363
   ReactNativeDependencies: fa0a54b3f5319ae0e3b9aff32bfee7a424b88e66
   RNScreens: 991cc417cd396602a6cf59a42139e5a9d91462a9
+  SSZipArchive: fe6a26b2a54d5a0890f2567b5cc6de5caa600aef
   Yoga: fe50ab299e578f397fef753cf309c6703a4db29b
-  ZIPFoundation: dfd3d681c4053ff7e2f7350bc4e53b5dba3f5351
 
 PODFILE CHECKSUM: 00264077eb384fe90ac1a7e11acc5363c2d284a7
 

@@ -50,19 +50,18 @@ final class ExtractArchiveUseCase {
         )
       }
 
-      let data = try await engine.readEntry(
+      let fileURL = try await destination.createFile(at: path)
+      let bytesWritten = try await engine.extractEntry(
         session: session,
         path: entry.path,
+        to: fileURL,
         limit: limits.maxEntryUncompressedBytes,
         password: password
       )
 
-      let fileURL = try await destination.createFile(at: path)
-      try data.write(to: fileURL, options: .atomic)
-
-      writtenBytes += UInt64(data.count)
+      writtenBytes += bytesWritten
       extracted += 1
-      onProgress(path, UInt64(data.count), writtenBytes)
+      onProgress(path, bytesWritten, writtenBytes)
     }
 
     return ExtractionResult(

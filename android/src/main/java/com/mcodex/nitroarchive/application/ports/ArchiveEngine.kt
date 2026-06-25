@@ -38,7 +38,9 @@ data class CreationPlan(
     val entries: List<EntryInput>,
     val compressionProfile: String?,
     val compressionLevel: Int?,
-    val storeAlreadyCompressed: Boolean
+    val storeAlreadyCompressed: Boolean,
+    val encryptionMethod: String? = null,
+    val encryptionPassword: String? = null
 )
 
 data class EntryInput(

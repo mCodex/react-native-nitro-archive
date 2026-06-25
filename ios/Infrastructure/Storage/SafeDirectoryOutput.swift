@@ -10,12 +10,18 @@ final class SafeDirectoryOutput: DirectoryOutput {
 
   func prepareDirectory(at path: String) async throws {
     let dirURL = baseURL.appendingPathComponent(path)
+    guard dirURL.path.hasPrefix(baseURL.path) else {
+      throw ArchiveDomainError.pathTraversal(path)
+    }
     try FileManager.default.createDirectory(at: dirURL, withIntermediateDirectories: true, attributes: nil)
     createdPaths.append(path)
   }
 
   func createFile(at path: String) async throws -> URL {
     let fileURL = baseURL.appendingPathComponent(path)
+    guard fileURL.path.hasPrefix(baseURL.path) else {
+      throw ArchiveDomainError.pathTraversal(path)
+    }
     let parent = fileURL.deletingLastPathComponent()
     try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true, attributes: nil)
     FileManager.default.createFile(atPath: fileURL.path, contents: nil)

@@ -52,6 +52,7 @@ final class TaskStateMachine: @unchecked Sendable {
   func fail() {
     lock.lock()
     defer { lock.unlock() }
+    guard _state == .idle || _state == .running || _state == .cancelling else { return }
     _state = .failed
   }
 }

@@ -9,4 +9,5 @@ protocol ArchiveEngineSession {
   func entry(at path: String) -> EntryDescriptor?
   var entries: [EntryDescriptor] { get }
   var archiveData: Data? { get }
+  var archiveURL: URL? { get }
 }

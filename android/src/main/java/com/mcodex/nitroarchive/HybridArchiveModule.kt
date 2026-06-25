@@ -14,7 +14,7 @@ import com.mcodex.nitroarchive.platform.AndroidArchiveAccessInspector
 import java.io.File
 import java.io.RandomAccessFile
 
-class HybridArchiveModule(context: Context) : HybridArchiveModuleSpec() {
+class HybridArchiveModule(private val context: Context) : HybridArchiveModuleSpec() {
     private val engine = Zip4jEngine()
     private val accessInspector = AndroidArchiveAccessInspector(context)
 
@@ -24,7 +24,7 @@ class HybridArchiveModule(context: Context) : HybridArchiveModuleSpec() {
             readableFormats = arrayOf("zip"),
             writableFormats = arrayOf("zip"),
             compressionMethods = arrayOf("store", "deflate"),
-            encryptionMethods = arrayOf("none"),
+            encryptionMethods = arrayOf("none", "zip-crypto", "aes-128", "aes-256"),
             supportsFilePaths = true,
             supportsInputUris = true,
             supportsOutputUris = true,
@@ -104,7 +104,18 @@ class HybridArchiveModule(context: Context) : HybridArchiveModuleSpec() {
         if (androidUri.scheme == "file") {
             detectFile(androidUri.path ?: uri).await()
         } else {
-            NativeDetectionOutcome(ok = true, format = "zip", confidence = 1.0, extensionMatches = true, error = null)
+            try {
+                val inputStream = context.contentResolver.openInputStream(androidUri)
+                val signature = inputStream?.use { it.readNBytes(4) }
+                if (signature == null || signature.size < 4) {
+                    NativeDetectionOutcome(ok = true, format = null, confidence = 0.0, extensionMatches = null, error = null)
+                } else {
+                    val isZip = signature[0] == 0x50.toByte() && signature[1] == 0x4B.toByte() && signature[2] == 0x03.toByte() && signature[3] == 0x04.toByte()
+                    NativeDetectionOutcome(ok = true, format = if (isZip) "zip" else null, confidence = if (isZip) 1.0 else 0.0, extensionMatches = null, error = null)
+                }
+            } catch (e: Exception) {
+                NativeDetectionOutcome(ok = false, format = null, confidence = 0.0, extensionMatches = null, error = NativeArchiveFailure(ArchiveErrorCode.E_IO, e.message ?: "Failed to read URI", null, null, null, null, null))
+            }
         }
     }
 
@@ -159,11 +170,33 @@ class HybridArchiveModule(context: Context) : HybridArchiveModuleSpec() {
             )
             return@async openFile(androidUri.path ?: uri, pathOptions).await()
         }
-        NativeOpenOutcome(ok = false, reader = null, error = NativeArchiveFailure(
-            code = ArchiveErrorCode.E_UNSUPPORTED_FORMAT,
-            message = "Opening content:// archives not yet implemented",
-            operationId = null, entryPath = null, source = uri, destination = null, nativeCode = null
-        ))
+
+        try {
+            val ctx = context
+            val inputStream = ctx.contentResolver.openInputStream(androidUri)
+                ?: throw ArchiveDomainError.FileNotAvailable("Cannot open input stream for URI: $uri")
+            val bytes = inputStream.use { it.readBytes() }
+            val bufferInput = BufferArchiveInput(bytes)
+            val useCase = OpenArchiveUseCase(engine)
+            val result = useCase.execute(bufferInput)
+            val reader = HybridArchiveReader(
+                inspection = result.inspection,
+                session = result.session,
+                engine = engine
+            )
+            NativeOpenOutcome(ok = true, reader = reader, error = null)
+        } catch (e: ArchiveDomainError) {
+            NativeOpenOutcome(ok = false, reader = null, error = NativeArchiveFailure(
+                code = mapCode(e.code), message = e.message ?: e.code,
+                operationId = null, entryPath = null, source = uri, destination = null, nativeCode = null
+            ))
+        } catch (e: Exception) {
+            NativeOpenOutcome(ok = false, reader = null, error = NativeArchiveFailure(
+                code = ArchiveErrorCode.E_IO,
+                message = e.message ?: "I/O error reading content:// URI",
+                operationId = null, entryPath = null, source = uri, destination = null, nativeCode = null
+            ))
+        }
     }
 
     override fun openBuffer(data: ArrayBuffer, options: NativeBufferOpenOptions): Promise<NativeOpenOutcome> = Promise.async {

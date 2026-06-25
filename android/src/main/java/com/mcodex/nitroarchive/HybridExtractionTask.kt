@@ -169,8 +169,8 @@ class HybridExtractionTask(
         val snapshot = NativeProgress(
             operationId = operationId,
             phase = phase,
-            processedBytes = processedBytes.toULong(),
-            totalBytes = totalBytes?.toULong(),
+            processedBytes = processedBytes,
+            totalBytes = totalBytes,
             processedEntries = processedEntries,
             totalEntries = totalEntries,
             currentEntry = currentEntry,

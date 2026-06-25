@@ -14,7 +14,11 @@ export class ProgressFanout {
   emit(progress: ArchiveProgress): void {
     if (this.disposed) return
     for (const listener of this.listeners) {
-      try { listener(progress) } catch {}
+      try { listener(progress) } catch (e) {
+        if (typeof console !== 'undefined') {
+          console.warn('[ArchiveProgress] Listener threw:', e)
+        }
+      }
     }
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
@@ -20,8 +20,8 @@ import type {
 import {
   createArchive,
   fileDestination,
+  uriDestination,
   bufferEntry,
-  bufferSource,
 } from '@mcodex/react-native-nitro-archive'
 import { ProgressBar } from '../components/ProgressBar'
 
@@ -71,7 +71,7 @@ export function CreateArchiveScreen() {
 
       const isUri = destinationPath.includes('://')
       const destination = isUri
-        ? fileDestination(destinationPath)
+        ? uriDestination(destinationPath)
         : fileDestination(
             destinationPath.startsWith('/')
               ? destinationPath

@@ -43,6 +43,7 @@ export function OpenArchiveScreen() {
   const insets = useSafeAreaInsets()
   const [state, setState] = useState<ScreenState>('idle')
   const [archiveUri, setArchiveUri] = useState<string>('')
+  const [password, setPassword] = useState<string>('')
   const [archiveName, setArchiveName] = useState<string>('')
   const [reader, setReader] = useState<ArchiveReader | null>(null)
   const [entryPage, setEntryPage] = useState<ArchiveEntryPage | null>(null)
@@ -80,7 +81,7 @@ export function OpenArchiveScreen() {
       const source = isUri ? uriSource(archiveUri) : fileSource(archiveUri)
       setArchiveName(archiveUri.split('/').pop() ?? 'archive.zip')
 
-      const archiveReader = await openArchive(source)
+      const archiveReader = await openArchive(source, { password: password || undefined })
       setReader(archiveReader)
       setState('loaded')
     } catch (err: unknown) {
@@ -88,7 +89,7 @@ export function OpenArchiveScreen() {
       setError(message)
       setState('error')
     }
-  }, [archiveUri])
+  }, [archiveUri, password])
 
   const handleListEntries = useCallback(async () => {
     if (!reader) return
@@ -224,6 +225,16 @@ export function OpenArchiveScreen() {
             onChangeText={setArchiveUri}
             autoCapitalize="none"
             autoCorrect={false}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password (optional, for encrypted archives)"
+            placeholderTextColor="#C7C7CC"
+            value={password}
+            onChangeText={setPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+            secureTextEntry
           />
           <TouchableOpacity
             style={styles.primaryButton}

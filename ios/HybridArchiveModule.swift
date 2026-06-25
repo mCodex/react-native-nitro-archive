@@ -6,7 +6,7 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
   private let accessInspector: ArchiveAccessInspecting
 
   override init() {
-    self.engine = ZIPFoundationEngine()
+    self.engine = SSZipArchiveEngine()
     self.accessInspector = IOSArchiveAccessInspector()
     super.init()
   }
@@ -20,9 +20,9 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
       encryptionMethods: ["none"],
       supportsFilePaths: true,
       supportsInputUris: true,
-      supportsOutputUris: true,
-      supportsDirectoryUris: true,
-      supportsAtomicPathWrites: true,
+      supportsOutputUris: false,
+      supportsDirectoryUris: false,
+      supportsAtomicPathWrites: false,
       supportsSecurityScopedUrls: true,
       supportsZip64: true
     )
@@ -97,12 +97,10 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
 
   func detectBuffer(data: ArrayBuffer) throws -> Promise<NativeDetectionOutcome> {
     Promise.async {
-      let ptr = data.data
-      let count = data.size
-      guard count >= 4 else {
+      guard data.size >= 4 else {
         return NativeDetectionOutcome(ok: true, format: nil, confidence: 0, extensionMatches: nil, error: nil)
       }
-      let bytes = UnsafeBufferPointer(start: ptr, count: count)
+      let bytes = Data(bytes: data.data, count: data.size)
       let isZip = bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 0x03 && bytes[3] == 0x04
       return NativeDetectionOutcome(ok: true, format: isZip ? "zip" : nil, confidence: isZip ? 1.0 : 0, extensionMatches: nil, error: nil)
     }
@@ -110,21 +108,7 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
 
   func openFile(path: String, options: NativePathOpenOptions) throws -> Promise<NativeOpenOutcome> {
     Promise.async {
-      let input = LocalFileInput(path: path)
-      let useCase = OpenArchiveUseCase(engine: self.engine)
-      do {
-        let result = try await useCase.execute(input: input)
-        let reader = HybridArchiveReader(
-          inspection: result.inspection,
-          session: result.session,
-          engine: self.engine
-        )
-        return NativeOpenOutcome(ok: true, reader: reader, error: nil)
-      } catch let error as ArchiveDomainError {
-        return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: self.mapCode(error.code), message: "\(error)", operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
-      } catch {
-        return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: .eIo, message: error.localizedDescription, operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
-      }
+      await self.openInput(LocalFileInput(path: path))
     }
   }
 
@@ -133,38 +117,34 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
       guard let url = URL(string: uri), url.isFileURL else {
         return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: .eInvalidArgument, message: "Not a file URL", operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
       }
-      let pathOptions = NativePathOpenOptions(
-        password: options.password,
-        maxEntriesToIndex: options.maxEntriesToIndex,
-        maxCentralDirectoryBytes: options.maxCentralDirectoryBytes
-      )
-      return try await self.openFile(path: url.path, options: pathOptions).await()
+      return await self.openInput(LocalFileInput(path: url.path))
     }
   }
 
   func openBuffer(data: ArrayBuffer, options: NativeBufferOpenOptions) throws -> Promise<NativeOpenOutcome> {
     Promise.async {
-      let swiftData = Data(bytes: data.data, count: data.size)
-      let input = BufferArchiveInput(data: swiftData)
-      let useCase = OpenArchiveUseCase(engine: self.engine)
-      do {
-        let result = try await useCase.execute(input: input)
-        let reader = HybridArchiveReader(
-          inspection: result.inspection,
-          session: result.session,
-          engine: self.engine
-        )
-        return NativeOpenOutcome(ok: true, reader: reader, error: nil)
-      } catch let error as ArchiveDomainError {
-        return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: self.mapCode(error.code), message: "\(error)", operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
-      } catch {
-        return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: .eIo, message: error.localizedDescription, operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
-      }
+      await self.openInput(BufferArchiveInput(data: Data(bytes: data.data, count: data.size)))
+    }
+  }
+
+  private func openInput(_ input: ArchiveInput) async -> NativeOpenOutcome {
+    let useCase = OpenArchiveUseCase(engine: self.engine)
+    do {
+      let result = try await useCase.execute(input: input)
+      return NativeOpenOutcome(ok: true, reader: HybridArchiveReader(
+        inspection: result.inspection,
+        session: result.session,
+        engine: self.engine
+      ), error: nil)
+    } catch let error as ArchiveDomainError {
+      return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: self.mapCode(error.code), message: "\(error)", operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
+    } catch {
+      return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: .eIo, message: error.localizedDescription, operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
     }
   }
 
   func create(request: NativeCreationRequest) throws -> (any HybridNativeCreationTaskSpec) {
-    throw ArchiveDomainError.unsupportedFormat("Creating archives is not yet implemented")
+    HybridCreationTask(engine: engine, request: request)
   }
 
   private func mapCode(_ code: String) -> ArchiveErrorCode {

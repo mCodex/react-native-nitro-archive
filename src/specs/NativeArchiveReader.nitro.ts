@@ -4,7 +4,7 @@ import type {
   NativeArchiveEntry,
   NativeExtractionRequest,
   NativeValidationRequest,
-} from './NativeArchiveTypes.nitro'
+} from './NativeArchiveTypes'
 import type { NativeExtractionTask, NativeValidationTask } from './NativeArchiveTasks.nitro'
 
 export interface NativeArchiveReader
