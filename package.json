@@ -6,7 +6,6 @@
   "module": "./lib/module/index.js",
   "types": "./lib/typescript/module/src/index.d.ts",
   "react-native": "./src/index.ts",
-  "private": true,
   "source": "./src/index.ts",
   "sideEffects": false,
   "scripts": {
