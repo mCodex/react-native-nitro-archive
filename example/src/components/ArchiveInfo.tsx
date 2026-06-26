@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import type { ArchiveFormat } from '@mcodex/react-native-nitro-archive'
+import type { ArchiveFormat } from 'react-native-nitro-archive'
+import { colors } from '../theme'
 
 interface ArchiveInfoProps {
   format: ArchiveFormat
@@ -54,11 +55,11 @@ export function ArchiveInfo({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -67,7 +68,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: colors.text,
     marginBottom: 12,
   },
   row: {
@@ -75,15 +76,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: colors.border,
   },
   label: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.textMuted,
   },
   value: {
     fontSize: 15,
-    color: '#1C1C1E',
+    color: colors.text,
     fontWeight: '500',
   },
 })

@@ -10,14 +10,15 @@ import {
   Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { colors } from '../theme'
 import type {
   ArchiveReader,
   ValidationResult,
   ArchiveProgress,
   ArchiveTask,
   ArchiveIssue,
-} from '@mcodex/react-native-nitro-archive'
-import { openArchive, fileSource, uriSource } from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
+import { openArchive, fileSource, uriSource } from 'react-native-nitro-archive'
 import { ArchiveInfo } from '../components/ArchiveInfo'
 import { ExtractionProgress } from '../components/ExtractionProgress'
 
@@ -119,7 +120,7 @@ export function ValidateArchiveScreen() {
           <TextInput
             style={styles.input}
             placeholder="/path/to/archive.zip"
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor={colors.placeholder}
             value={archivePath}
             onChangeText={setArchivePath}
             autoCapitalize="none"
@@ -136,7 +137,7 @@ export function ValidateArchiveScreen() {
 
       {state === 'loading' ? (
         <View style={styles.centeredSection}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Opening archive...</Text>
         </View>
       ) : null}
@@ -268,7 +269,7 @@ function IssueRow({ issue }: { issue: ArchiveIssue }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.background,
   },
   content: {
     padding: 16,
@@ -280,55 +281,55 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    shadowColor: '#007AFF',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 17,
     fontWeight: '600',
   },
   hint: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 16,
     textAlign: 'center',
     paddingHorizontal: 40,
   },
   loadingText: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 15,
     marginTop: 12,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: '#1C1C1E',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
     marginBottom: 10,
     width: '100%',
   },
   errorBanner: {
-    backgroundColor: '#FFF2F0',
+    backgroundColor: colors.dangerSoft,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#FFC7C2',
+    borderColor: colors.dangerBorder,
   },
   errorText: {
-    color: '#FF3B30',
+    color: colors.danger,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -337,16 +338,16 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   retryButtonText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '600',
   },
   resultCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -360,10 +361,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   statusPass: {
-    backgroundColor: '#E8F8E8',
+    backgroundColor: colors.successSoft,
   },
   statusFail: {
-    backgroundColor: '#FFF0F0',
+    backgroundColor: colors.dangerSoft,
   },
   statusText: {
     fontSize: 17,
@@ -382,22 +383,22 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: colors.text,
   },
   statLabel: {
     fontSize: 11,
-    color: '#8E8E93',
+    color: colors.textMuted,
     marginTop: 2,
   },
   issuesSection: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: colors.border,
     paddingTop: 12,
   },
   issuesHeader: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: colors.danger,
     marginBottom: 8,
   },
   issueRow: {
@@ -412,10 +413,10 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   issueDotError: {
-    backgroundColor: '#FF3B30',
+    backgroundColor: colors.danger,
   },
   issueDotWarning: {
-    backgroundColor: '#FF9500',
+    backgroundColor: colors.warning,
   },
   issueContent: {
     flex: 1,
@@ -423,18 +424,18 @@ const styles = StyleSheet.create({
   issueCode: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#3C3C43',
+    color: colors.textSecondary,
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
   },
   issueMessage: {
     fontSize: 13,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     marginTop: 2,
     lineHeight: 18,
   },
   issuePath: {
     fontSize: 11,
-    color: '#8E8E93',
+    color: colors.textMuted,
     marginTop: 2,
   },
   noIssues: {
@@ -443,7 +444,7 @@ const styles = StyleSheet.create({
   },
   noIssuesText: {
     fontSize: 15,
-    color: '#34C759',
+    color: colors.success,
     fontWeight: '600',
   },
   actionGroup: {
@@ -451,13 +452,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   validateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
   },
   validateButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 17,
     fontWeight: '600',
   },
@@ -465,15 +466,15 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   closeButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
   },
   closeButtonText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },

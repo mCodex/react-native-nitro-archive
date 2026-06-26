@@ -1,7 +1,8 @@
 import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
-import type { ArchiveProgress } from '@mcodex/react-native-nitro-archive'
+import type { ArchiveProgress } from 'react-native-nitro-archive'
 import { ProgressBar } from './ProgressBar'
+import { colors } from '../theme'
 
 interface ExtractionProgressProps {
   progress: ArchiveProgress
@@ -69,12 +70,12 @@ export function ExtractionProgress({ progress, title = 'Progress' }: ExtractionP
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#F9F9FB',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
   },
   headerRow: {
     alignItems: 'center',
@@ -84,7 +85,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   titleText: {
-    color: '#1C1C1E',
+    color: colors.text,
     flexShrink: 1,
     fontSize: 14,
     fontWeight: '700',
@@ -92,13 +93,13 @@ const styles = StyleSheet.create({
   phaseText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#007AFF',
+    color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0,
   },
   entryText: {
     fontSize: 14,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   row: {
@@ -108,10 +109,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.textMuted,
   },
   waitingText: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 8,

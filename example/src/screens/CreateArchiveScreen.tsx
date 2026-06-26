@@ -11,6 +11,7 @@ import {
   useWindowDimensions,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { colors } from '../theme'
 import type {
   ArchiveTask,
   ArchiveProgress,
@@ -18,13 +19,13 @@ import type {
   ZipCompressionMethod,
   CompressionProfile,
   ZipEncryptionMethod,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 import {
   createArchive,
   fileDestination,
   uriDestination,
   bufferEntry,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 import { ProgressBar } from '../components/ProgressBar'
 
 function stringToArrayBuffer(str: string): ArrayBuffer {
@@ -207,7 +208,7 @@ export function CreateArchiveScreen() {
         <TextInput
           style={styles.input}
           placeholder="/tmp/my-archive.zip"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.placeholder}
           value={destinationPath}
           onChangeText={setDestinationPath}
           autoCapitalize="none"
@@ -221,7 +222,7 @@ export function CreateArchiveScreen() {
         <TextInput
           style={styles.input}
           placeholder="hello.txt"
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.placeholder}
           value={bufferFileName}
           onChangeText={setBufferFileName}
           autoCapitalize="none"
@@ -232,7 +233,7 @@ export function CreateArchiveScreen() {
         <TextInput
           style={[styles.input, styles.multilineInput]}
           placeholder="File content..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.placeholder}
           value={bufferContent}
           onChangeText={setBufferContent}
           multiline
@@ -271,7 +272,7 @@ export function CreateArchiveScreen() {
             <TextInput
               style={styles.input}
               placeholder="Archive password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.placeholder}
               value={password}
               onChangeText={setPassword}
               autoCapitalize="none"
@@ -332,7 +333,7 @@ export function CreateArchiveScreen() {
 
       {state === 'creating' ? (
         <View style={styles.creatingOverlay}>
-          <ActivityIndicator size="large" color="#1D7A8C" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.creatingText}>Creating archive...</Text>
         </View>
       ) : null}
@@ -370,7 +371,7 @@ export function CreateArchiveScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: colors.background,
   },
   content: {
     padding: 18,
@@ -386,7 +387,7 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
   eyebrow: {
-    color: '#52677A',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0,
@@ -394,45 +395,45 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   title: {
-    color: '#101820',
+    color: colors.text,
     fontSize: 30,
     fontWeight: '800',
     marginBottom: 8,
   },
   subtitle: {
-    color: '#52677A',
+    color: colors.textMuted,
     fontSize: 15,
     lineHeight: 21,
   },
   panel: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#DDE5EC',
+    borderColor: colors.border,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101820',
+    color: colors.text,
     marginBottom: 12,
   },
   inputLabel: {
     fontSize: 13,
-    color: '#52677A',
+    color: colors.textMuted,
     fontWeight: '700',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 12,
     fontSize: 15,
-    color: '#101820',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#DDE5EC',
+    borderColor: colors.border,
     marginBottom: 12,
   },
   multilineInput: {
@@ -448,111 +449,111 @@ const styles = StyleSheet.create({
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#DDE5EC',
+    borderColor: colors.border,
     minWidth: 132,
     flexGrow: 1,
     flexShrink: 1,
   },
   optionCardSelected: {
-    borderColor: '#1D7A8C',
-    backgroundColor: '#EAF7FA',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   optionDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#9CA3AF',
+    borderColor: colors.placeholder,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
   },
   optionDotSelected: {
-    borderColor: '#1D7A8C',
+    borderColor: colors.primary,
   },
   optionDotInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#1D7A8C',
+    backgroundColor: colors.primary,
   },
   optionLabel: {
     flex: 1,
     fontSize: 14,
-    color: '#334155',
+    color: colors.textSecondary,
     fontWeight: '700',
     lineHeight: 18,
   },
   optionLabelSelected: {
-    color: '#0F5E6D',
+    color: colors.primary,
   },
   helperText: {
-    color: '#64748B',
+    color: colors.textSubtle,
     fontSize: 13,
     lineHeight: 18,
     marginTop: -2,
   },
   progressSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 16,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: '#DDE5EC',
+    borderColor: colors.border,
   },
   progressPhase: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#1D7A8C',
+    color: colors.primary,
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0,
   },
   progressText: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.textMuted,
     marginTop: 6,
   },
   resultCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 16,
     marginVertical: 8,
     borderLeftWidth: 3,
-    borderLeftColor: '#2FA36B',
+    borderLeftColor: colors.success,
     borderTopWidth: 1,
     borderRightWidth: 1,
     borderBottomWidth: 1,
-    borderTopColor: '#DDE5EC',
-    borderRightColor: '#DDE5EC',
-    borderBottomColor: '#DDE5EC',
+    borderTopColor: colors.border,
+    borderRightColor: colors.border,
+    borderBottomColor: colors.border,
   },
   resultTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: colors.text,
     marginBottom: 8,
   },
   resultText: {
     fontSize: 14,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   errorBanner: {
-    backgroundColor: '#FFF2F0',
+    backgroundColor: colors.dangerSoft,
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
     borderWidth: 1,
-    borderColor: '#FFC7C2',
+    borderColor: colors.dangerBorder,
   },
   errorText: {
-    color: '#FF3B30',
+    color: colors.danger,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -561,24 +562,24 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
   },
   creatingText: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 15,
     marginTop: 10,
   },
   createButton: {
-    backgroundColor: '#1D7A8C',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
-    shadowColor: '#1D7A8C',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   createButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 17,
     fontWeight: '600',
   },
@@ -586,16 +587,16 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   resetButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
   },
   resetButtonText: {
-    color: '#1D7A8C',
+    color: colors.primary,
     fontSize: 16,
     fontWeight: '600',
   },

@@ -1,8 +1,8 @@
-# @mcodex/react-native-nitro-archive
+# react-native-nitro-archive
 
 ZIP archive creation, inspection, validation, reading, and extraction for React Native, built on Nitro Modules.
 
-[![Version](https://img.shields.io/npm/v/%40mcodex%2Freact-native-nitro-archive.svg)](https://www.npmjs.com/package/@mcodex/react-native-nitro-archive)
+[![Version](https://img.shields.io/npm/v/%40mcodex%2Freact-native-nitro-archive.svg)](https://www.npmjs.com/package/react-native-nitro-archive)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![React Native](https://img.shields.io/badge/react--native-0.76%2B-61dafb.svg)](https://reactnative.dev/)
 [![Nitro Modules](https://img.shields.io/badge/nitro--modules-0.35%2B-orange.svg)](https://github.com/mrousavy/nitro)
@@ -35,11 +35,11 @@ This package is ZIP-first. It does not try to be a general filesystem wrapper.
 ## 📦 Installation
 
 ```sh
-yarn add @mcodex/react-native-nitro-archive react-native-nitro-modules
+yarn add react-native-nitro-archive react-native-nitro-modules
 ```
 
 ```sh
-npm install @mcodex/react-native-nitro-archive react-native-nitro-modules
+npm install react-native-nitro-archive react-native-nitro-modules
 ```
 
 For iOS:
@@ -58,7 +58,7 @@ import {
   bufferEntry,
   createArchive,
   fileDestination,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 
 const data = new TextEncoder().encode('hello').buffer
 
@@ -77,7 +77,7 @@ Open and list a ZIP:
 import {
   fileSource,
   openArchive,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 
 const archive = await openArchive(fileSource('/tmp/example.zip'))
 
@@ -96,7 +96,7 @@ import {
   directoryDestination,
   fileSource,
   openArchive,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 
 const archive = await openArchive(fileSource('/tmp/example.zip'))
 
@@ -134,7 +134,7 @@ import {
   bufferEntry,
   createArchive,
   fileDestination,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 
 const task = createArchive({
   destination: fileDestination('/tmp/private.zip'),

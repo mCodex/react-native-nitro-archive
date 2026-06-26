@@ -1,5 +1,5 @@
 {
-  "name": "@mcodex/react-native-nitro-archive",
+  "name": "react-native-nitro-archive",
   "version": "0.1.0",
   "description": "Production-grade ZIP archive library for React Native, powered by Nitro Modules",
   "main": "./lib/commonjs/index.js",

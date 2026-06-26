@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 import { Animated, View, StyleSheet } from 'react-native'
+import { colors } from '../theme'
 
 interface ProgressBarProps {
   progress: number
@@ -10,9 +11,9 @@ interface ProgressBarProps {
 
 export function ProgressBar({
   progress,
-  color = '#007AFF',
+  color = colors.primary,
   height = 6,
-  backgroundColor = '#E5E5EA',
+  backgroundColor = colors.border,
 }: ProgressBarProps) {
   const animatedWidth = useRef(new Animated.Value(0)).current
 

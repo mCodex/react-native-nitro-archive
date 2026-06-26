@@ -9,12 +9,13 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { colors } from '../theme'
 import type {
   ArchiveAccessMode,
   ArchiveAccessReport,
   ArchiveRecoveryAction,
-} from '@mcodex/react-native-nitro-archive'
-import { checkArchiveAccess, fileSource } from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
+import { checkArchiveAccess, fileSource } from 'react-native-nitro-archive'
 
 const modes: { label: string; value: ArchiveAccessMode }[] = [
   { label: 'Read', value: 'read' },
@@ -65,8 +66,6 @@ export function AccessPreflightScreen() {
       setError('')
       setReport(null)
 
-      const isUri = path.includes('://')
-
       const result = await checkArchiveAccess(
         fileSource(path),
         selectedMode,
@@ -91,7 +90,7 @@ export function AccessPreflightScreen() {
       <TextInput
         style={styles.input}
         placeholder="/path/to/file or content://..."
-        placeholderTextColor="#C7C7CC"
+        placeholderTextColor={colors.placeholder}
         value={path}
         onChangeText={setPath}
         autoCapitalize="none"
@@ -123,7 +122,7 @@ export function AccessPreflightScreen() {
 
       {state === 'checking' ? (
         <View style={styles.centerBox}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.checkingText}>Checking access...</Text>
         </View>
       ) : null}
@@ -203,7 +202,7 @@ export function AccessPreflightScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.background,
   },
   content: {
     padding: 16,
@@ -212,19 +211,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: '#1C1C1E',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
   },
   modesRow: {
     flexDirection: 'row',
@@ -232,24 +231,24 @@ const styles = StyleSheet.create({
   },
   modeOption: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
   },
   modeOptionSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#F0F8FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
   },
   modeLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#3C3C43',
+    color: colors.textSecondary,
   },
   modeLabelSelected: {
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '600',
   },
   centerBox: {
@@ -257,29 +256,29 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
   },
   checkingText: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 15,
     marginTop: 10,
   },
   errorBanner: {
-    backgroundColor: '#FFF2F0',
+    backgroundColor: colors.dangerSoft,
     borderRadius: 12,
     padding: 16,
     marginVertical: 12,
     borderWidth: 1,
-    borderColor: '#FFC7C2',
+    borderColor: colors.dangerBorder,
   },
   errorText: {
-    color: '#FF3B30',
+    color: colors.danger,
     fontSize: 14,
     lineHeight: 20,
   },
   reportCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginVertical: 12,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -288,7 +287,7 @@ const styles = StyleSheet.create({
   reportTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: colors.text,
     marginBottom: 12,
   },
   infoRow: {
@@ -296,38 +295,38 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: colors.border,
   },
   infoLabel: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.textMuted,
   },
   infoValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#1C1C1E',
+    color: colors.text,
   },
   positive: {
-    color: '#34C759',
+    color: colors.success,
   },
   negative: {
-    color: '#FF3B30',
+    color: colors.danger,
   },
   permissionsList: {
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: colors.border,
   },
   permissionsTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3C3C43',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   permissionItem: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontFamily: 'monospace',
     marginBottom: 2,
   },
@@ -335,50 +334,50 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: colors.border,
   },
   recoveryTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#3C3C43',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   recoveryAction: {
     fontSize: 14,
-    color: '#007AFF',
+    color: colors.primary,
     fontWeight: '500',
   },
   reasonSection: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: colors.border,
   },
   reasonTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: colors.danger,
     marginBottom: 4,
   },
   reasonText: {
     fontSize: 13,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     lineHeight: 18,
   },
   checkButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
     marginTop: 24,
-    shadowColor: '#007AFF',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   checkButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 17,
     fontWeight: '600',
   },

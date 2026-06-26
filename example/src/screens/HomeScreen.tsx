@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { colors } from '../theme'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { RootStackParamList } from '../navigation/AppNavigator'
 
@@ -83,7 +84,7 @@ export function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.background,
   },
   content: {
     paddingBottom: 40,
@@ -100,12 +101,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: colors.text,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
   },
@@ -114,10 +115,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -137,17 +138,17 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1C1C1E',
+    color: colors.text,
     marginBottom: 2,
   },
   cardSubtitle: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: colors.textMuted,
     lineHeight: 18,
   },
   chevron: {
     fontSize: 24,
-    color: '#C7C7CC',
+    color: colors.placeholder,
     marginLeft: 8,
   },
 })

@@ -23,8 +23,8 @@
       "es2022.string"
     ],
     "paths": {
-      "@mcodex/react-native-nitro-archive": ["../src"],
-      "@mcodex/react-native-nitro-archive/*": ["../src/*"]
+      "react-native-nitro-archive": ["../src"],
+      "react-native-nitro-archive/*": ["../src/*"]
     }
   }
 }

@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { colors } from '../theme'
 import type {
   ArchiveReader,
   ArchiveEntry,
@@ -18,14 +19,14 @@ import type {
   ValidationResult,
   ArchiveProgress,
   ArchiveTask,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 import {
   openArchive,
   fileSource,
   uriSource,
   directoryDestination,
   directoryUriDestination,
-} from '@mcodex/react-native-nitro-archive'
+} from 'react-native-nitro-archive'
 import { ArchiveInfo } from '../components/ArchiveInfo'
 import { ExtractionProgress } from '../components/ExtractionProgress'
 
@@ -286,7 +287,7 @@ export function OpenArchiveScreen() {
           <TextInput
             style={styles.input}
             placeholder="/path/to/archive.zip"
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor={colors.placeholder}
             value={archiveUri}
             onChangeText={setArchiveUri}
             autoCapitalize="none"
@@ -295,7 +296,7 @@ export function OpenArchiveScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password (optional, for encrypted archives)"
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor={colors.placeholder}
             value={password}
             onChangeText={setPassword}
             autoCapitalize="none"
@@ -316,7 +317,7 @@ export function OpenArchiveScreen() {
 
       {state === 'loading' ? (
         <View style={styles.centeredSection}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.loadingText}>Opening archive...</Text>
         </View>
       ) : null}
@@ -389,8 +390,8 @@ export function OpenArchiveScreen() {
               style={[
                 styles.resultCard,
                 validationResult.valid
-                  ? { borderLeftColor: '#34C759', borderLeftWidth: 3 }
-                  : { borderLeftColor: '#FF3B30', borderLeftWidth: 3 },
+                  ? { borderLeftColor: colors.success, borderLeftWidth: 3 }
+                  : { borderLeftColor: colors.danger, borderLeftWidth: 3 },
               ]}
             >
               <Text style={styles.resultTitle}>
@@ -484,7 +485,7 @@ export function OpenArchiveScreen() {
             <TextInput
               style={styles.input}
               placeholder="/tmp/test-extracted"
-              placeholderTextColor="#C7C7CC"
+              placeholderTextColor={colors.placeholder}
               value={extractPath}
               onChangeText={setExtractPath}
               autoCapitalize="none"
@@ -564,7 +565,7 @@ export function OpenArchiveScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.background,
   },
   content: {
     padding: 16,
@@ -576,43 +577,43 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   primaryButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    shadowColor: '#007AFF',
+    shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 17,
     fontWeight: '600',
   },
   hint: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 14,
     marginTop: 16,
     textAlign: 'center',
     paddingHorizontal: 40,
   },
   loadingText: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 15,
     marginTop: 12,
   },
   errorBanner: {
-    backgroundColor: '#FFF2F0',
+    backgroundColor: colors.dangerSoft,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#FFC7C2',
+    borderColor: colors.dangerBorder,
   },
   errorText: {
-    color: '#FF3B30',
+    color: colors.danger,
     fontSize: 14,
     lineHeight: 20,
   },
@@ -621,7 +622,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-end',
   },
   retryButtonText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -631,18 +632,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: colors.text,
     marginBottom: 12,
   },
   actionButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     marginBottom: 10,
   },
   actionButtonText: {
-    color: '#FFFFFF',
+    color: colors.surface,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -650,83 +651,83 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   cancelButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingVertical: 13,
     alignItems: 'center',
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#FF9F0A',
+    borderColor: colors.warning,
   },
   cancelButtonText: {
-    color: '#B86200',
+    color: colors.warning,
     fontSize: 15,
     fontWeight: '600',
   },
   secondaryButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
   },
   secondaryButtonText: {
-    color: '#FF3B30',
+    color: colors.danger,
     fontSize: 16,
     fontWeight: '600',
   },
   inputLabel: {
     fontSize: 15,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     fontWeight: '500',
     marginBottom: 6,
     marginTop: 4,
   },
   input: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 16,
     fontSize: 15,
-    color: '#1C1C1E',
+    color: colors.text,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
     marginBottom: 10,
   },
   fieldHelp: {
-    color: '#8E8E93',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 17,
     marginTop: -4,
     marginBottom: 10,
   },
   warningCard: {
-    backgroundColor: '#FFF8E8',
+    backgroundColor: colors.warningSoft,
     borderRadius: 10,
     padding: 12,
     marginTop: 10,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#FFE0A3',
+    borderColor: colors.warningBorder,
   },
   warningTitle: {
-    color: '#6B4A00',
+    color: colors.warning,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 4,
   },
   warningText: {
-    color: '#6B4A00',
+    color: colors.warning,
     fontSize: 13,
     lineHeight: 18,
   },
   resultCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginVertical: 8,
-    shadowColor: '#000',
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -735,57 +736,57 @@ const styles = StyleSheet.create({
   resultTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#1C1C1E',
+    color: colors.text,
     marginBottom: 8,
   },
   resultText: {
     fontSize: 14,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   issuesList: {
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E5E5EA',
+    borderTopColor: colors.border,
   },
   issuesTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#FF3B30',
+    color: colors.danger,
     marginBottom: 4,
   },
   issueItem: {
     fontSize: 12,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     lineHeight: 18,
     marginBottom: 2,
   },
   entriesCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#E5E5EA',
+    borderColor: colors.border,
     maxHeight: 300,
   },
   entriesHeader: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#8E8E93',
+    color: colors.textMuted,
     marginBottom: 8,
   },
   noEntries: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: colors.textMuted,
     textAlign: 'center',
     paddingVertical: 20,
   },
   entryRow: {
     paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#E5E5EA',
+    borderBottomColor: colors.border,
   },
   entryInfo: {
     flexDirection: 'row',
@@ -794,7 +795,7 @@ const styles = StyleSheet.create({
   },
   entryPath: {
     fontSize: 13,
-    color: '#1C1C1E',
+    color: colors.text,
     flex: 1,
     marginRight: 8,
   },
@@ -805,8 +806,8 @@ const styles = StyleSheet.create({
   },
   entryBadge: {
     fontSize: 11,
-    color: '#8E8E93',
-    backgroundColor: '#F2F2F7',
+    color: colors.textMuted,
+    backgroundColor: colors.background,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
@@ -814,18 +815,18 @@ const styles = StyleSheet.create({
   },
   entrySize: {
     fontSize: 12,
-    color: '#3C3C43',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   readEntryButton: {
     marginTop: 10,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: colors.background,
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
   },
   readEntryButtonText: {
-    color: '#007AFF',
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600',
   },

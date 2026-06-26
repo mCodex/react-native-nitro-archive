@@ -5,6 +5,7 @@ import { OpenArchiveScreen } from '../screens/OpenArchiveScreen'
 import { CreateArchiveScreen } from '../screens/CreateArchiveScreen'
 import { ValidateArchiveScreen } from '../screens/ValidateArchiveScreen'
 import { AccessPreflightScreen } from '../screens/AccessPreflightScreen'
+import { colors } from '../theme'
 
 export type RootStackParamList = {
   Home: undefined
@@ -20,9 +21,9 @@ export function AppNavigator() {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: '#FFFFFF' },
-        headerTintColor: '#007AFF',
-        headerTitleStyle: { fontWeight: '600', color: '#1C1C1E' },
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.primary,
+        headerTitleStyle: { fontWeight: '600', color: colors.text },
         headerShadowVisible: false,
       }}
     >
