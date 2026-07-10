@@ -1,6 +1,6 @@
 package com.mcodex.nitroarchive
 
-import com.margelo.nitro.archive.*
+import com.margelo.nitro.mcodex.nitroarchive.*
 import com.margelo.nitro.core.Promise
 import com.mcodex.nitroarchive.application.ports.ArchiveEngine
 import com.mcodex.nitroarchive.application.ports.ArchiveEngineSession
@@ -18,11 +18,11 @@ class HybridValidationTask(
 
     private val stateMachine = TaskStateMachine()
     private val operationId = UUID.randomUUID().toString()
-    private val listeners = mutableListOf<(NativeProgress) -> Unit>()
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<(NativeProgress) -> Unit>()
     private var latestProgress = NativeProgress(
         operationId = operationId,
         phase = "idle",
-        processedBytes = 0L,
+        processedBytes = 0L.toNativeByteCount(),
         totalBytes = null,
         processedEntries = 0.0,
         totalEntries = null,
@@ -168,7 +168,7 @@ class HybridValidationTask(
                 operationId = operationId,
                 valid = issues.isEmpty(),
                 checkedEntries = entriesToValidate.size.toDouble(),
-                checkedUncompressedBytes = checkedUncompressed,
+                checkedUncompressedBytes = checkedUncompressed.toNativeByteCount(),
                 encryptedEntries = encryptedCount.toDouble(),
                 durationMs = (System.currentTimeMillis() - startTime).toDouble(),
                 issues = issues.toTypedArray()
@@ -210,8 +210,8 @@ class HybridValidationTask(
         val snapshot = NativeProgress(
             operationId = operationId,
             phase = phase,
-            processedBytes = processedBytes,
-            totalBytes = totalBytes,
+            processedBytes = processedBytes.toNativeByteCount(),
+            totalBytes = totalBytes?.toNativeByteCount(),
             processedEntries = processedEntries,
             totalEntries = totalEntries,
             currentEntry = currentEntry,

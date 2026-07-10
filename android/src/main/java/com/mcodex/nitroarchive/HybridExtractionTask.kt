@@ -1,6 +1,6 @@
 package com.mcodex.nitroarchive
 
-import com.margelo.nitro.archive.*
+import com.margelo.nitro.mcodex.nitroarchive.*
 import com.margelo.nitro.core.Promise
 import com.mcodex.nitroarchive.application.ExtractArchiveUseCase
 import com.mcodex.nitroarchive.application.ExtractionPlanner
@@ -22,11 +22,11 @@ class HybridExtractionTask(
 
     private val stateMachine = TaskStateMachine()
     private val operationId = UUID.randomUUID().toString()
-    private val listeners = mutableListOf<(NativeProgress) -> Unit>()
+    private val listeners = java.util.concurrent.CopyOnWriteArrayList<(NativeProgress) -> Unit>()
     private var latestProgress = NativeProgress(
         operationId = operationId,
         phase = "idle",
-        processedBytes = 0L,
+        processedBytes = 0L.toNativeByteCount(),
         totalBytes = null,
         processedEntries = 0.0,
         totalEntries = null,
@@ -52,8 +52,8 @@ class HybridExtractionTask(
 
         val limits = ExtractionLimits(
             maxEntries = request.limits?.maxEntries?.toInt() ?: 10000,
-            maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes ?: 2_147_483_648L,
-            maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes ?: 536_870_912L,
+            maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes.toLongOrDefault(2_147_483_648L),
+            maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes.toLongOrDefault(536_870_912L),
             maxCompressionRatio = request.limits?.maxCompressionRatio?.toInt() ?: 1000,
             maxPathDepth = request.limits?.maxPathDepth?.toInt() ?: 32,
             maxPathBytes = request.limits?.maxPathBytes?.toInt() ?: 1024
@@ -127,7 +127,7 @@ class HybridExtractionTask(
                 operationId = operationId,
                 extractedEntries = summary.extractedEntries.toDouble(),
                 skippedEntries = summary.skippedEntries.toDouble(),
-                writtenBytes = summary.writtenBytes,
+                writtenBytes = summary.writtenBytes.toNativeByteCount(),
                 durationMs = duration.toDouble(),
                 atomicWriteApplied = false,
                 warnings = emptyArray()
@@ -172,8 +172,8 @@ class HybridExtractionTask(
         val snapshot = NativeProgress(
             operationId = operationId,
             phase = phase,
-            processedBytes = processedBytes,
-            totalBytes = totalBytes,
+            processedBytes = processedBytes.toNativeByteCount(),
+            totalBytes = totalBytes?.toNativeByteCount(),
             processedEntries = processedEntries,
             totalEntries = totalEntries,
             currentEntry = currentEntry,
