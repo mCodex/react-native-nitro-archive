@@ -13,16 +13,16 @@ This package is ZIP-first. It does not try to be a general filesystem wrapper.
 
 | Area | Status |
 | --- | --- |
-| ZIP reading | 🚧 In progress |
-| ZIP64 metadata | 🚧 In progress |
-| ZIP creation | 🚧 In progress |
-| Selective extraction | 🚧 In progress |
-| Progress and cancellation | 🚧 In progress |
-| Password ZIP support | 🚧 In progress: ZipCrypto and AES-256 creation, password read/extract/validate |
+| ZIP reading | ✅ Working on iOS and Android |
+| ZIP64 metadata | ✅ Working on iOS and Android |
+| ZIP creation | ✅ Working on iOS and Android |
+| Selective extraction | ✅ Working on iOS and Android |
+| Progress and cancellation | ✅ Working on iOS and Android |
+| Password ZIP support | ✅ ZipCrypto and AES-256 creation, password read/extract/validate on iOS and Android |
 | TAR, RAR, 7z | ❌ Out of scope |
 
 > [!WARNING]
-> Treat the current package as pre-1.0. APIs can still change while iOS, Android, and TypeScript behavior are brought into parity.
+> Treat the current package as pre-1.0. APIs can still change while TypeScript behavior is stabilized.
 
 ## 📋 Requirements
 
@@ -204,7 +204,7 @@ Imports are side-effect free. The native Nitro module is created lazily on the f
 - Uses Kotlin for domain and application code.
 - Uses Zip4j for ZIP operations.
 - Supports password read, extraction, validation, and creation for advertised methods.
-- Supports local file paths and Android `content://` work is being stabilized.
+- Supports local file paths and Android `content://` input URIs.
 
 > [!NOTE]
 > Check `getArchiveCapabilities().encryptionMethods` before offering password ZIP creation in your app. Creation is intentionally limited to methods supported on both native engines; TAR, RAR, and 7z remain out of scope.
