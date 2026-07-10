@@ -228,7 +228,9 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
     }
 
     override fun create(request: NativeCreationRequest): HybridNativeCreationTaskSpec {
-        return HybridCreationTask(context = context, engine = engine, request = request)
+        val ctx = com.margelo.nitro.NitroModules.applicationContext?.applicationContext
+            ?: throw ArchiveDomainError.Internal("NitroModules.applicationContext is null — create() called before React context was ready")
+        return HybridCreationTask(context = ctx, engine = engine, request = request)
     }
 
     private fun mapCode(code: String): ArchiveErrorCode {
