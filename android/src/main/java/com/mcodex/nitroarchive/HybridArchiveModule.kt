@@ -1,7 +1,7 @@
 package com.mcodex.nitroarchive
 
 import android.content.Context
-import com.margelo.nitro.archive.*
+import com.margelo.nitro.mcodex.nitroarchive.*
 import com.margelo.nitro.core.ArrayBuffer
 import com.margelo.nitro.core.Promise
 import com.mcodex.nitroarchive.application.CreateArchiveUseCase
@@ -14,9 +14,12 @@ import com.mcodex.nitroarchive.platform.AndroidArchiveAccessInspector
 import java.io.File
 import java.io.RandomAccessFile
 
-class HybridArchiveModule(private val context: Context) : HybridArchiveModuleSpec() {
+class HybridArchiveModule() : HybridArchiveModuleSpec() {
+    private val context get() =
+        com.margelo.nitro.NitroModules.applicationContext?.applicationContext
+            ?: throw ArchiveDomainError.Internal("NitroModules not initialized")
     private val engine = Zip4jEngine()
-    private val accessInspector = AndroidArchiveAccessInspector(context)
+    private val accessInspector by lazy { AndroidArchiveAccessInspector(context) }
 
     override fun getCapabilities(): NativeArchiveCapabilities {
         return NativeArchiveCapabilities(
@@ -27,8 +30,8 @@ class HybridArchiveModule(private val context: Context) : HybridArchiveModuleSpe
             encryptionMethods = arrayOf("none", "zip-crypto", "aes-256"),
             supportsFilePaths = true,
             supportsInputUris = true,
-            supportsOutputUris = true,
-            supportsDirectoryUris = true,
+            supportsOutputUris = false,
+            supportsDirectoryUris = false,
             supportsAtomicPathWrites = false,
             supportsSecurityScopedUrls = false,
             supportsZip64 = true
@@ -225,7 +228,7 @@ class HybridArchiveModule(private val context: Context) : HybridArchiveModuleSpe
     }
 
     override fun create(request: NativeCreationRequest): HybridNativeCreationTaskSpec {
-        return HybridCreationTask(engine = engine, request = request)
+        return HybridCreationTask(context = context, engine = engine, request = request)
     }
 
     private fun mapCode(code: String): ArchiveErrorCode {
