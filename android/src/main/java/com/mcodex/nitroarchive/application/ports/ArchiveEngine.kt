@@ -49,7 +49,8 @@ data class EntryInput(
     val kind: String,
     val sourcePath: String?,
     val archivePath: String,
-    val data: ByteArray?
+    val data: ByteArray?,
+    val compressionMethod: String? = null
 )
 
 data class CreationResult(

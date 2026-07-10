@@ -52,8 +52,8 @@ class HybridExtractionTask(
 
         val limits = ExtractionLimits(
             maxEntries = request.limits?.maxEntries?.toInt() ?: 10000,
-            maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes.toLongOrDefault(2_147_483_648L),
-            maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes.toLongOrDefault(536_870_912L),
+            maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes ?: 2_147_483_648L,
+            maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes ?: 536_870_912L,
             maxCompressionRatio = request.limits?.maxCompressionRatio?.toInt() ?: 1000,
             maxPathDepth = request.limits?.maxPathDepth?.toInt() ?: 32,
             maxPathBytes = request.limits?.maxPathBytes?.toInt() ?: 1024
