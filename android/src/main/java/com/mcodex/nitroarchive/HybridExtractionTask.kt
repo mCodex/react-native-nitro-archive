@@ -1,6 +1,6 @@
 package com.mcodex.nitroarchive
 
-import com.margelo.nitro.mcodex.nitroarchive.*
+import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.Promise
 import com.mcodex.nitroarchive.application.ExtractArchiveUseCase
 import com.mcodex.nitroarchive.application.ExtractionPlanner

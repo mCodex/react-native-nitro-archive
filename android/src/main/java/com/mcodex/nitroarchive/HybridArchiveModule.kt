@@ -1,7 +1,7 @@
 package com.mcodex.nitroarchive
 
 import android.content.Context
-import com.margelo.nitro.mcodex.nitroarchive.*
+import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.ArrayBuffer
 import com.margelo.nitro.core.Promise
 import com.mcodex.nitroarchive.application.CreateArchiveUseCase
