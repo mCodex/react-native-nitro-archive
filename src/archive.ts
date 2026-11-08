@@ -4,6 +4,21 @@ import { mapOpenOptions, openOutcomeOrThrow } from "./internal/nativeAdapter";
 import type { ArchiveReader } from "./public/ArchiveReader";
 import type { ArchiveSource } from "./types/archive";
 
+/**
+ * Opens a ZIP for metadata, bounded reads, extraction and validation.
+ * @param source Construct with fileSource(), uriSource(), or bufferSource().
+ * @param options Optional password and indexing budgets. Byte limits must be positive bigint values no greater than Number.MAX_SAFE_INTEGER.
+ * @returns An open reader; dispose it after its reads and tasks finish.
+ * @throws ArchiveError for reported archive or storage failures.
+ * @example
+ * const archive = await openArchive(fileSource(zipPath))
+ * try {
+ *   const page = await archive.listEntries({ limit: 100 })
+ *   console.log(page.entries)
+ * } finally {
+ *   archive.dispose()
+ * }
+ */
 export async function openArchive(
 	source: ArchiveSource,
 	options?: {

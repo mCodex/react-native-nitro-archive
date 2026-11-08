@@ -1,3 +1,4 @@
+import { assertInteger, toNativeByteCount } from "./assertions";
 import type { ArchiveReader } from "../public/ArchiveReader";
 import type { NativeArchiveReader } from "../specs/NativeArchiveReader.nitro";
 import type { ExtractArchiveOptions } from "../types/extraction";
@@ -45,6 +46,9 @@ export class ArchiveReaderWrapper implements ArchiveReader {
 	async listEntries(
 		options?: import("../types/archive").ListArchiveEntriesOptions,
 	) {
+    assertInteger(options?.offset ?? 0, "offset", 0);
+    assertInteger(options?.limit ?? 250, "limit", 1, 2000);
+
 		return mapEntryPage(
 			await this.native.listEntries(
 				options?.offset ?? 0,
@@ -66,9 +70,12 @@ export class ArchiveReaderWrapper implements ArchiveReader {
 		path: string,
 		options: { maxBytes: bigint; password?: string; verifyChecksum?: boolean },
 	) {
+    const maxBytes = toNativeByteCount(options.maxBytes, "maxBytes");
+    if (maxBytes === undefined) throw new TypeError("maxBytes is required.");
+
 		return this.native.readEntry(
 			path,
-			Number(options.maxBytes),
+			maxBytes,
 			options.password,
 			options.verifyChecksum,
 		);

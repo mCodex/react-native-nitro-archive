@@ -8,9 +8,9 @@ Pod::Spec.new do |s|
   s.homepage     = package["homepage"]
   s.license      = package["license"]
   s.authors      = package["author"]
-  s.platforms    = { :ios => "15.0", :tvos => "15.0" }
+  s.platforms    = { :ios => "15.5", :tvos => "15.4" }
   s.source       = { :git => "https://github.com/mcodex/react-native-nitro-archive.git", :tag => "#{s.version}" }
-  s.dependency "SSZipArchive", "~> 2.4"
+  s.dependency "SSZipArchive", "2.6.0"
   s.module_name  = "NitroArchive"
   s.source_files = "ios/**/*.{h,hpp,cpp,mm,swift}"
   s.public_header_files = "ios/Infrastructure/Zip/NitroArchiveZipEntryReader.h"

@@ -1,95 +1,25 @@
 # react-native-nitro-archive
 
-ZIP archive creation, inspection, validation, reading, and extraction for React Native, built on Nitro Modules.
+ZIP creation, inspection, bounded reads and extraction for React Native, powered by Nitro Modules. Archive work runs in Swift and Kotlin; binary inputs use paths, URIs or `ArrayBuffer`.
 
-[![Version](https://img.shields.io/npm/v/%40mcodex%2Freact-native-nitro-archive.svg)](https://www.npmjs.com/package/react-native-nitro-archive)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![React Native](https://img.shields.io/badge/react--native-0.76%2B-61dafb.svg)](https://reactnative.dev/)
-[![Nitro Modules](https://img.shields.io/badge/nitro--modules-0.35%2B-orange.svg)](https://github.com/mrousavy/nitro)
-
-## 📊 Status
-
-This package is ZIP-first. It does not try to be a general filesystem wrapper.
-
-| Area | Status |
-| --- | --- |
-| ZIP reading | ✅ Working on iOS and Android |
-| ZIP64 metadata | ✅ Working on iOS and Android |
-| ZIP creation | ✅ Working on iOS and Android |
-| Selective extraction | ✅ Working on iOS and Android |
-| Progress and cancellation | ✅ Working on iOS and Android |
-| Password ZIP support | ✅ ZipCrypto and AES-256 creation, password read/extract/validate on iOS and Android |
-| TAR, RAR, 7z | ❌ Out of scope |
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > [!WARNING]
-> Treat the current package as pre-1.0. APIs can still change while TypeScript behavior is stabilized.
+> This package is pre-1.0. Native compatibility, external-document access and the security conformance suite are being completed. Review the [compatibility notes](docs/compatibility.md) before adopting it for untrusted archives.
 
-## 📋 Requirements
-
-- React Native 0.76 or newer
-- Node.js 18 or newer
-- `react-native-nitro-modules`
-- iOS 15 or newer
-- Android API level supported by your React Native version
-
-## 📦 Installation
+## 📦 Install
 
 ```sh
 yarn add react-native-nitro-archive react-native-nitro-modules
 ```
 
-```sh
-npm install react-native-nitro-archive react-native-nitro-modules
-```
+For iOS, run `bundle exec pod install` in your app’s `ios` directory, then rebuild the app. React Native and Nitro Modules are peer dependencies; use a compatible pair for your app.
 
-For iOS:
+**Expo requires a development build.** This package contains custom native code and does not run in the standard Expo Go app. See [Expo and platform access](docs/platform-access.md).
 
-```sh
-cd ios
-bundle exec pod install
-```
+## Open and extract a ZIP
 
-## 🚀 Quick Start
-
-Create a ZIP:
-
-```ts
-import {
-  bufferEntry,
-  createArchive,
-  fileDestination,
-} from 'react-native-nitro-archive'
-
-const data = new TextEncoder().encode('hello').buffer
-
-const task = createArchive({
-  destination: fileDestination('/tmp/example.zip'),
-  entries: [bufferEntry(data, 'hello.txt')],
-})
-
-const result = await task.start()
-console.log(result.outputBytes)
-```
-
-Open and list a ZIP:
-
-```ts
-import {
-  fileSource,
-  openArchive,
-} from 'react-native-nitro-archive'
-
-const archive = await openArchive(fileSource('/tmp/example.zip'))
-
-try {
-  const page = await archive.listEntries({ limit: 100 })
-  console.log(page.entries)
-} finally {
-  archive.dispose()
-}
-```
-
-Extract selected entries:
+The paths below are absolute paths inside your app’s writable storage. Your app supplies them; the library does not pick files or request permissions.
 
 ```ts
 import {
@@ -98,148 +28,97 @@ import {
   openArchive,
 } from 'react-native-nitro-archive'
 
-const archive = await openArchive(fileSource('/tmp/example.zip'))
-
-try {
-  const task = archive.extract({
-    destination: directoryDestination('/tmp/example-out'),
-    include: ['images/**/*'],
-    exclude: ['**/.DS_Store', '**/__MACOSX/**'],
-    limits: {
-      maxEntries: 10_000,
-      maxTotalUncompressedBytes: 2_147_483_648n,
-      maxEntryUncompressedBytes: 536_870_912n,
-    },
-  })
-
-  const removeProgress = task.onProgress((progress) => {
-    console.log(progress.percentage, progress.currentEntry)
-  })
+async function extractPhotos(zipPath: string, outputDirectory: string) {
+  const archive = await openArchive(fileSource(zipPath))
 
   try {
-    await task.start()
+    const page = await archive.listEntries({ limit: 100 })
+    console.log(page.entries.map((entry) => entry.path))
+
+    const task = archive.extract({
+      destination: directoryDestination(outputDirectory),
+      include: ['photos/**/*'],
+      exclude: ['**/.DS_Store'],
+    })
+    const unsubscribe = task.onProgress((progress) => {
+      console.log(progress.percentage, progress.currentEntry)
+    })
+
+    try {
+      return await task.start()
+    } finally {
+      unsubscribe()
+      task.dispose()
+    }
   } finally {
-    removeProgress()
-    task.dispose()
+    archive.dispose()
   }
-} finally {
-  archive.dispose()
 }
 ```
 
-Create a password-protected ZIP:
+A task starts once. Call `task.cancel()` to request cooperative cancellation; await `start()` settling before releasing resources. Operations are process-bound and do not survive app termination.
+
+## Create a ZIP
 
 ```ts
 import {
-  bufferEntry,
   createArchive,
   fileDestination,
+  fileEntry,
 } from 'react-native-nitro-archive'
 
-const task = createArchive({
-  destination: fileDestination('/tmp/private.zip'),
-  entries: [bufferEntry(new TextEncoder().encode('secret').buffer, 'secret.txt')],
-  encryption: {
-    method: 'aes-256',
-    password: 'correct horse battery staple',
-  },
-})
+async function zipReport(reportPath: string, zipPath: string) {
+  const task = createArchive({
+    destination: fileDestination(zipPath),
+    entries: [fileEntry(reportPath, 'report.pdf')],
+    compression: { profile: 'balanced' },
+  })
 
-await task.start()
+  try {
+    return await task.start()
+  } finally {
+    task.dispose()
+  }
+}
 ```
 
-## 🔒 Security
+Use `directoryEntry()` for directories and `bufferEntry()` for small binary contents. Existing-output policy defaults to `error`; check `atomicWriteApplied` in results before relying on atomic replacement.
 
-Archive extraction is a trust boundary. This package rejects unsafe archive paths by default and keeps extraction bounded.
+## 🔒 Handle untrusted input
 
-> [!IMPORTANT]
-> ZIP bombs are valid ZIP files designed to exhaust disk, memory, or CPU. Set extraction limits for user-provided archives and keep the defaults unless you have measured input sizes.
+Keep restrictive extraction limits. The contract defaults are 10,000 entries, 2 GiB total output, 512 MiB per entry, compression ratio 1,000, depth 32 and path length 1,024 UTF-8 bytes. Validation does not reserve disk space or make a later extraction immune to changes in storage or access.
 
-> [!WARNING]
-> Passwords do not make archives safe. Encrypted ZIPs can still contain bombs, traversal paths, duplicate outputs, unsafe links, and corrupted entries. The same limits and path checks apply before and during password extraction.
+ZIP is the only exposed archive format. Encryption identifiers in TypeScript do not establish interoperability: consult `getArchiveCapabilities()` and verify both platforms before accepting password-protected archives. Passwords do not protect against malicious archive contents.
 
-Default protections include:
+```ts
+import { isArchiveError } from 'react-native-nitro-archive'
+import type { ArchiveTask } from 'react-native-nitro-archive/types'
 
-- Reject `..` path traversal.
-- Reject absolute POSIX paths, Windows drive paths, UNC paths, and URI-style paths.
-- Reject duplicate normalized output paths by default.
-- Reject special files and unsafe links by default.
-- Enforce entry count, per-entry size, total uncompressed size, path depth, and path byte limits.
-- Enforce compression-ratio limits for encrypted and unencrypted entries.
-- Keep progress listeners scoped to one task instead of using a global event emitter.
-- Avoid base64 in the public API.
-
-> [!CAUTION]
-> Do not pass archives from untrusted users to extraction with relaxed limits. Validate and inspect first, then extract only the paths you need.
-
-## 🛠️ API Shape
-
-The public TypeScript API uses named constructors instead of raw objects:
-
-- `fileSource(path)`
-- `uriSource(uri)`
-- `bufferSource(data)`
-- `fileDestination(path)`
-- `uriDestination(uri)`
-- `directoryDestination(path)`
-- `directoryUriDestination(uri)`
-- `fileEntry(sourcePath, archivePath)`
-- `directoryEntry(sourcePath, archivePath)`
-- `bufferEntry(data, archivePath)`
-
-Imports are side-effect free. The native Nitro module is created lazily on the first runtime operation.
-
-## 📱 Platform Notes
-
-### 🍎 iOS
-
-- Uses Swift for domain and application code.
-- Uses SSZipArchive/minizip for ZIP operations.
-- Supports password read, extraction, validation, and creation for advertised methods.
-- Supports local file paths.
-- Security-scoped URL and coordinated access work is still being stabilized.
-
-### 🤖 Android
-
-- Uses Kotlin for domain and application code.
-- Uses Zip4j for ZIP operations.
-- Supports password read, extraction, validation, and creation for advertised methods.
-- Supports local file paths and Android `content://` input URIs.
-
-> [!NOTE]
-> Check `getArchiveCapabilities().encryptionMethods` before offering password ZIP creation in your app. Creation is intentionally limited to methods supported on both native engines; TAR, RAR, and 7z remain out of scope.
-
-## 💻 Development
-
-```sh
-yarn install
-yarn typecheck
-yarn test
+async function runTask(task: ArchiveTask<unknown>) {
+  try {
+    return await task.start()
+  } catch (error) {
+    if (isArchiveError(error)) {
+      console.error(error.code)
+    }
+    throw error
+  }
+}
 ```
 
-iOS example build:
+Branch on error codes, not message text. Avoid logging passwords or document contents. See [security and limits](docs/security-and-limits.md) and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
-```sh
-cd example/ios
-bundle exec pod install
-cd ../..
-xcodebuild \
-  -workspace example/ios/NitroArchiveExample.xcworkspace \
-  -scheme NitroArchiveExample \
-  -configuration Debug \
-  -sdk iphonesimulator \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  build
-```
+## Learn more
 
-## 🤝 Contributing
+- [Platform access, URI grants and Expo](docs/platform-access.md)
+- [Compatibility, imports and bundle size](docs/compatibility.md)
+- [Format-extension assessment](docs/formats.md)
+- [Implementation plan and verification gates](IMPLEMENTATION_PLAN.md)
 
-Keep changes ZIP-focused. Public API changes start in TypeScript, then Swift and Kotlin follow the same contract.
+Use root named exports for the core API. Pure constructors also have subpaths such as `react-native-nitro-archive/sources`; React hooks live under `react-native-nitro-archive/react`. Hover documentation describes options, units and lifecycle requirements.
 
-Do not edit generated Nitro files by hand. Change the specs, regenerate, and commit the generated output only when it matches the specs.
+## Contribute
 
-Security fixes are welcome. If you find a path traversal, symlink, ZIP bomb, permission, or data-loss issue, open a private report when possible.
+Public changes start in TypeScript. Keep Swift and Kotlin behavior aligned, add regression tests for safety fixes, and regenerate Nitro bindings rather than editing generated files. Run the repository’s typecheck, tests, build and native verification before proposing a release.
 
-## 📄 License
-
-MIT
+[MIT](LICENSE). Native engine dependencies retain their own licenses.

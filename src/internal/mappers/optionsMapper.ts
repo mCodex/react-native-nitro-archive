@@ -8,9 +8,36 @@ import type {
 	NativeValidationRequest,
 } from "../../specs/NativeArchiveTypes";
 import type { CreateArchiveOptions } from "../../types/creation";
-import type { ExtractArchiveOptions } from "../../types/extraction";
+import type { ExtractionLimits, ExtractArchiveOptions } from "../../types/extraction";
 import type { ValidateArchiveOptions } from "../../types/validation";
+import { assertInteger, toNativeByteCount } from "../assertions";
 import { mapEntryInput } from "./entryMapper";
+
+function mapLimits(limits?: ExtractionLimits) {
+  if (limits === undefined) return undefined;
+
+  for (const name of ["maxEntries", "maxPathDepth", "maxPathBytes"] as const) {
+    const value = limits[name];
+    if (value !== undefined) assertInteger(value, name);
+  }
+
+  if (limits.maxCompressionRatio !== undefined && (!Number.isFinite(limits.maxCompressionRatio) || limits.maxCompressionRatio <= 0)) {
+    throw new TypeError("maxCompressionRatio must be finite and positive.");
+  }
+
+  return {
+    maxEntries: limits.maxEntries,
+    maxTotalUncompressedBytes: toNativeByteCount(limits.maxTotalUncompressedBytes, "maxTotalUncompressedBytes"),
+    maxEntryUncompressedBytes: toNativeByteCount(limits.maxEntryUncompressedBytes, "maxEntryUncompressedBytes"),
+    maxCompressionRatio: limits.maxCompressionRatio,
+    maxPathDepth: limits.maxPathDepth,
+    maxPathBytes: limits.maxPathBytes,
+  };
+}
+
+function assertProgressInterval(value?: number): void {
+  if (value !== undefined) assertInteger(value, "progressIntervalMs");
+}
 
 const creatableEncryptionMethods = new Set(["none", "zip-crypto", "aes-256"]);
 
@@ -18,6 +45,24 @@ export function mapExtractionOptions(
 	options: ExtractArchiveOptions,
 ): NativeExtractionRequest {
 	const dest = options.destination;
+  assertProgressInterval(options.progressIntervalMs);
+  if (options.entries !== undefined && options.include !== undefined) {
+    throw new TypeError("entries and include cannot be combined.");
+  }
+
+  const security = options.security;
+  if ((security?.preventPathTraversal !== undefined && security.preventPathTraversal !== true) ||
+      (security?.rejectAbsolutePaths !== undefined && security.rejectAbsolutePaths !== true) ||
+      (security?.rejectSpecialFiles !== undefined && security.rejectSpecialFiles !== true)) {
+    throw new TypeError("Path traversal, absolute paths and special files must be rejected.");
+  }
+
+  if ((security?.symlinks !== undefined && security.symlinks !== "reject") ||
+      (security?.duplicates !== undefined && security.duplicates !== "error") ||
+      options.preservePermissions === true || options.preserveExecutableBit === true) {
+    throw new TypeError("Link preservation, relaxed duplicate policies and permission preservation are not supported yet.");
+  }
+
 	const native: NativeExtractionRequest = {
 		destinationKind: dest.kind,
 		entries: options.entries,
@@ -37,22 +82,7 @@ export function mapExtractionOptions(
 		native.destinationUri = dest.uri;
 	}
 
-	if (options.limits) {
-		native.limits = {
-			maxEntries: options.limits.maxEntries,
-			maxTotalUncompressedBytes:
-				options.limits.maxTotalUncompressedBytes != null
-					? Number(options.limits.maxTotalUncompressedBytes)
-					: undefined,
-			maxEntryUncompressedBytes:
-				options.limits.maxEntryUncompressedBytes != null
-					? Number(options.limits.maxEntryUncompressedBytes)
-					: undefined,
-			maxCompressionRatio: options.limits.maxCompressionRatio,
-			maxPathDepth: options.limits.maxPathDepth,
-			maxPathBytes: options.limits.maxPathBytes,
-		};
-	}
+	native.limits = mapLimits(options.limits);
 
 	return native;
 }
@@ -61,6 +91,7 @@ export function mapCreationOptions(
 	options: CreateArchiveOptions,
 ): NativeCreationRequest {
 	const dest = options.destination;
+  assertProgressInterval(options.progressIntervalMs);
 	const encryption = options.encryption;
 	if (
 		encryption?.method != null &&
@@ -92,9 +123,7 @@ export function mapCreationOptions(
 		includeEmptyDirectories: options.includeEmptyDirectories,
 		preserveTimestamps: options.preserveTimestamps,
 		maxInMemoryBytes:
-			options.maxInMemoryBytes != null
-				? Number(options.maxInMemoryBytes)
-				: undefined,
+			toNativeByteCount(options.maxInMemoryBytes, "maxInMemoryBytes"),
 		progressIntervalMs: options.progressIntervalMs,
 		encryptionMethod: encryption?.method,
 		encryptionPassword: encryption?.password,
@@ -112,7 +141,9 @@ export function mapCreationOptions(
 export function mapValidationOptions(
 	options: ValidateArchiveOptions,
 ): NativeValidationRequest {
-	return {
+  assertProgressInterval(options.progressIntervalMs);
+  return {
+    limits: mapLimits(options.limits),
 		verifyChecksums: options.verifyChecksums,
 		scanAllEntries: options.scanAllEntries,
 		password: options.password,
@@ -133,13 +164,13 @@ export function mapOpenOptions(
 	uri: NativeUriOpenOptions;
 	buffer: NativeBufferOpenOptions;
 } {
+  if (options?.maxEntriesToIndex !== undefined) assertInteger(options.maxEntriesToIndex, "maxEntriesToIndex");
+
 	const base = {
 		password: options?.password,
 		maxEntriesToIndex: options?.maxEntriesToIndex,
 		maxCentralDirectoryBytes:
-			options?.maxCentralDirectoryBytes != null
-				? Number(options.maxCentralDirectoryBytes)
-				: undefined,
+			toNativeByteCount(options?.maxCentralDirectoryBytes, "maxCentralDirectoryBytes"),
 	};
 	return {
 		path: base,

@@ -7,7 +7,7 @@ import { AppNavigator } from './src/navigation/AppNavigator'
 function App(): React.JSX.Element {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
       <NavigationContainer>
         <AppNavigator />
       </NavigationContainer>

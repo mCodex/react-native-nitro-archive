@@ -17,6 +17,7 @@ export class ExtractionTaskWrapper implements ArchiveTask<ExtractionResult> {
 	readonly id: string;
 	private fanout = new ProgressFanout();
 	private started = false;
+	private disposed = false;
 	private _progress: ArchiveProgress;
 	private nativeDispose: () => void;
 
@@ -24,10 +25,11 @@ export class ExtractionTaskWrapper implements ArchiveTask<ExtractionResult> {
 		private native: NativeExtractionTask,
 		private options: ExtractArchiveOptions,
 	) {
-		this.id = `extract-${Math.random().toString(36).slice(2, 10)}`;
+		this.id = native.progress.operationId;
 		this._progress = mapProgress(native.progress);
 
 		this.nativeDispose = this.native.onProgress((p) => {
+			if (this.disposed) return;
 			const mapped = mapProgress(p);
 			this._progress = mapped;
 			this.fanout.emit(mapped);
@@ -43,6 +45,8 @@ export class ExtractionTaskWrapper implements ArchiveTask<ExtractionResult> {
 	}
 
 	async start(): Promise<ExtractionResult> {
+        if (this.disposed) throw new ArchiveError("E_DISPOSED", "Task has been disposed.");
+
 		if (this.started) {
 			throw new ArchiveError(
 				"E_INVALID_STATE",
@@ -55,7 +59,7 @@ export class ExtractionTaskWrapper implements ArchiveTask<ExtractionResult> {
 	}
 
 	cancel(): boolean {
-		return this.native.cancel();
+		return !this.disposed && this.native.cancel();
 	}
 
 	onProgress(listener: ArchiveProgressListener): () => void {
@@ -63,7 +67,14 @@ export class ExtractionTaskWrapper implements ArchiveTask<ExtractionResult> {
 	}
 
 	dispose(): void {
-		this.nativeDispose();
-		this.fanout.dispose();
+        if (this.disposed) return;
+
+        this.disposed = true;
+        this.native.cancel();
+        try {
+            this.nativeDispose();
+        } finally {
+            this.fanout.dispose();
+        }
 	}
 }

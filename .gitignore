@@ -70,7 +70,6 @@ android/keystores/debug.keystore
 .kotlin
 
 # AI files/folders
-docs/
 AGENTS.md
 
 # Expo
@@ -80,6 +79,4 @@ AGENTS.md
 lib/
 tsconfig.tsbuildinfo
 
-#nitrogen
-
-nitrogen/*
+nitrogen/

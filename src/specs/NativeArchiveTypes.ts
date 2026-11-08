@@ -205,6 +205,7 @@ export interface NativeEntryInput {
 }
 
 export interface NativeValidationRequest {
+  limits?: NativeExtractionLimits;
 	verifyChecksums?: boolean;
 	scanAllEntries?: boolean;
 	password?: string;

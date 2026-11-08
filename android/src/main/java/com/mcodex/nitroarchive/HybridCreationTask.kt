@@ -19,6 +19,7 @@ class HybridCreationTask(
     private val request: NativeCreationRequest
 ) : HybridNativeCreationTaskSpec() {
 
+    private val copiedEntryData = request.entries.map { it.data?.toByteArray() }
     private val stateMachine = TaskStateMachine()
     private val operationId = UUID.randomUUID().toString()
     private val listeners = java.util.concurrent.CopyOnWriteArrayList<(NativeProgress) -> Unit>()
@@ -48,10 +49,8 @@ class HybridCreationTask(
                 else -> throw ArchiveDomainError.InvalidArgument("Unsupported destination kind: ${request.destinationKind}")
             }
 
-            val entryInputs = request.entries.flatMap { nativeEntry ->
-                val data = nativeEntry.data?.let { arrayBuffer ->
-                    arrayBuffer.toByteArray()
-                }
+            val entryInputs = request.entries.flatMapIndexed { index, nativeEntry ->
+                val data = copiedEntryData[index]
                 when (nativeEntry.kind) {
                     "uri" -> listOf(EntryInput(
                         kind = "buffer",

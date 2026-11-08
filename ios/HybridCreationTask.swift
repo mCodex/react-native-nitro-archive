@@ -16,7 +16,7 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
   private var cachedProgress: NativeProgress
 
   var state: String {
-    cachedState
+    stateMachine.state.rawValue
   }
 
   var progress: NativeProgress {
@@ -124,8 +124,8 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
         return NativeCreationResult(
           operationId: self.operationId,
           entryCount: Double(result.entryCount),
-          inputBytes: result.inputBytes,
-          outputBytes: result.outputBytes,
+          inputBytes: Double(result.inputBytes),
+          outputBytes: Double(result.outputBytes),
           durationMs: duration,
           atomicWriteApplied: false,
           warnings: []
@@ -174,7 +174,7 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
     let snapshot = NativeProgress(
       operationId: operationId,
       phase: phase,
-      processedBytes: processedBytes,
+      processedBytes: Double(processedBytes),
       totalBytes: nil,
       processedEntries: Double(processedEntries),
       totalEntries: total,

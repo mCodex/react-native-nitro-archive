@@ -2,6 +2,8 @@ package com.mcodex.nitroarchive
 
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.Promise
+import com.mcodex.nitroarchive.application.ExtractionPlanner
+import com.mcodex.nitroarchive.domain.ExtractionLimits
 import com.mcodex.nitroarchive.application.ports.ArchiveEngine
 import com.mcodex.nitroarchive.application.ports.ArchiveEngineSession
 import com.mcodex.nitroarchive.domain.ArchiveDomainError
@@ -31,6 +33,15 @@ class HybridValidationTask(
             latestProgress = emitProgress(operationId, phase = "validating", listeners = listeners)
 
             val entries = session.entries
+            val limits = ExtractionLimits(
+                maxEntries = request.limits?.maxEntries?.toInt() ?: 10000,
+                maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes?.toLong() ?: 2_147_483_648L,
+                maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes?.toLong() ?: 536_870_912L,
+                maxCompressionRatio = request.limits?.maxCompressionRatio?.toInt() ?: 1000,
+                maxPathDepth = request.limits?.maxPathDepth?.toInt() ?: 32,
+                maxPathBytes = request.limits?.maxPathBytes?.toInt() ?: 1024
+            )
+            ExtractionPlanner().plan(entries, null, null, limits)
             val issues = mutableListOf<NativeArchiveIssue>()
             var checkedUncompressed = 0L
             var encryptedCount = 0

@@ -15,7 +15,7 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
   private var cachedProgress: NativeProgress
 
   var state: String {
-    cachedState
+    stateMachine.state.rawValue
   }
 
   var progress: NativeProgress {
@@ -59,7 +59,7 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
         throw ArchiveDomainError.invalidArgument("No destination path provided")
       }
 
-      let limits = self.resolveLimits()
+      let limits = try self.resolveLimits()
       let planner = ExtractionPlanner()
       let plan = try planner.planExtraction(
         entries: self.session.entries,
@@ -112,9 +112,9 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
           operationId: self.operationId,
           extractedEntries: Double(result.extractedEntries),
           skippedEntries: Double(result.skippedEntries),
-          writtenBytes: result.writtenBytes,
+          writtenBytes: Double(result.writtenBytes),
           durationMs: duration,
-          atomicWriteApplied: true,
+          atomicWriteApplied: false,
           warnings: []
         )
       } catch {
@@ -129,19 +129,7 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
   }
 
   func cancel() throws -> Bool {
-    let didCancel = stateMachine.cancel()
-    if didCancel {
-      cachedState = "cancelled"
-      emitProgress(phase: "cleaning-up", processedBytes: 0,
-                    processedEntries: 0, currentEntry: nil)
-
-      if request.cleanupOnCancel ?? true {
-        Task {
-          try? await safeOutput?.rollback()
-        }
-      }
-    }
-    return didCancel
+    stateMachine.cancel()
   }
 
   func onProgress(callback: @escaping (NativeProgress) -> Void) throws -> () -> Void {
@@ -151,12 +139,12 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
     }
   }
 
-  private func resolveLimits() -> ExtractionLimits {
+  private func resolveLimits() throws -> ExtractionLimits {
     guard let nativeLimits = request.limits else { return .default }
     return ExtractionLimits(
       maxEntries: nativeLimits.maxEntries.map(Int.init) ?? 10000,
-      maxTotalUncompressedBytes: nativeLimits.maxTotalUncompressedBytes ?? 2_147_483_648,
-      maxEntryUncompressedBytes: nativeLimits.maxEntryUncompressedBytes ?? 536_870_912,
+      maxTotalUncompressedBytes: try parseNativeByteCount(nativeLimits.maxTotalUncompressedBytes, default: 2_147_483_648),
+      maxEntryUncompressedBytes: try parseNativeByteCount(nativeLimits.maxEntryUncompressedBytes, default: 536_870_912),
       maxCompressionRatio: nativeLimits.maxCompressionRatio.map(Int.init) ?? 1000,
       maxPathDepth: nativeLimits.maxPathDepth.map(Int.init) ?? 32,
       maxPathBytes: nativeLimits.maxPathBytes.map(Int.init) ?? 1024
@@ -184,7 +172,7 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
     let snapshot = NativeProgress(
       operationId: operationId,
       phase: phase,
-      processedBytes: processedBytes,
+      processedBytes: Double(processedBytes),
       totalBytes: nil,
       processedEntries: Double(processedEntries),
       totalEntries: total,

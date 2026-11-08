@@ -279,6 +279,7 @@ describe('mapAccessReport', () => {
         recoveryAction: 'none',
       },
       'read',
+      'ios',
     )
     expect(result.platform).toBe('ios')
     expect(result.mode).toBe('read')
@@ -550,7 +551,7 @@ describe('mapOpenOptions', () => {
     })
     expect(result.path.password).toBe('pass')
     expect(result.path.maxEntriesToIndex).toBe(1000)
-    expect(result.path.maxCentralDirectoryBytes).toBe(50000000n)
+    expect(result.path.maxCentralDirectoryBytes).toBe(50000000)
     expect(result.uri.iosSecurityScope).toBeUndefined()
     expect(result.buffer.password).toBe('pass')
   })

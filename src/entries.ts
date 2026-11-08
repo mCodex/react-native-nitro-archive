@@ -6,6 +6,12 @@ import type {
 	UriArchiveEntryInput,
 } from "./types/creation";
 
+/**
+ * Adds a local file to ZIP creation inputs without reading it.
+ * @param sourcePath Absolute native file path.
+ * @param archivePath Relative path to store inside the ZIP.
+ * @throws TypeError if sourcePath is not absolute.
+ */
 export function fileEntry(
 	sourcePath: string,
 	archivePath: string,
@@ -17,6 +23,11 @@ export function fileEntry(
 	return Object.freeze({ kind: "file", sourcePath, archivePath, ...options });
 }
 
+/**
+ * Adds a platform document to ZIP creation inputs without opening it.
+ * @param source URI source with any required access already held by your app.
+ * @param archivePath Relative path to store inside the ZIP.
+ */
 export function uriEntry(
 	source: ArchiveUriSource,
 	archivePath: string,
@@ -25,6 +36,13 @@ export function uriEntry(
 	return Object.freeze({ kind: "uri", source, archivePath, ...options });
 }
 
+/**
+ * Adds a local directory to ZIP creation inputs without traversing it.
+ * @param sourcePath Absolute native directory path.
+ * @param archivePath Relative directory prefix inside the ZIP.
+ * @param options Defaults: recursive true, includeHidden false, followSymlinks false.
+ * @throws TypeError if sourcePath is not absolute.
+ */
 export function directoryEntry(
 	sourcePath: string,
 	archivePath: string,
@@ -50,6 +68,13 @@ export function directoryEntry(
 	});
 }
 
+/**
+ * Adds a small binary buffer to ZIP creation inputs without base64.
+ * @param data Entry contents; aggregate memory is bounded by maxInMemoryBytes.
+ * @param archivePath Relative entry path inside the ZIP.
+ * @example
+ * const entry = bufferEntry(new TextEncoder().encode("hello").buffer, "hello.txt")
+ */
 export function bufferEntry(
 	data: ArrayBuffer,
 	archivePath: string,

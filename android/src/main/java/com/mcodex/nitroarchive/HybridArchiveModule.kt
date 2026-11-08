@@ -112,8 +112,10 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
         }
     }
 
-    override fun detectBuffer(data: ArrayBuffer): Promise<NativeDetectionOutcome> = Promise.async {
-        val bytes = data.toByteArray()
+    override fun detectBuffer(data: ArrayBuffer): Promise<NativeDetectionOutcome> {
+        val bytes = ByteArray(minOf(data.size, 4))
+        data.getBuffer(false).get(bytes)
+        return Promise.async {
         if (bytes.size < 4) {
             return@async NativeDetectionOutcome(ok = true, format = null, confidence = 0.0, extensionMatches = null, error = null)
         }
@@ -125,6 +127,8 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
             extensionMatches = null,
             error = null
         )
+    }
+
     }
 
     override fun openFile(path: String, options: NativePathOpenOptions): Promise<NativeOpenOutcome> = Promise.async {
@@ -192,9 +196,10 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
         }
     }
 
-    override fun openBuffer(data: ArrayBuffer, options: NativeBufferOpenOptions): Promise<NativeOpenOutcome> = Promise.async {
+    override fun openBuffer(data: ArrayBuffer, options: NativeBufferOpenOptions): Promise<NativeOpenOutcome> {
+        val bytes = data.toByteArray()
+        return Promise.async {
         try {
-            val bytes = data.toByteArray()
             val input = BufferArchiveInput(bytes)
             val useCase = OpenArchiveUseCase(engine)
             val result = useCase.execute(input)
@@ -215,6 +220,8 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
                 operationId = null, entryPath = null, source = options.name, destination = null, nativeCode = null
             ))
         }
+    }
+
     }
 
     override fun create(request: NativeCreationRequest): HybridNativeCreationTaskSpec {

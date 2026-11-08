@@ -7,50 +7,46 @@ import type {
 	ExtractionDestination,
 } from "./types/archive";
 
-function targetKind(
-	target: ArchiveSource | ArchiveFileDestination | ExtractionDestination,
-): string {
-	return typeof target === "object" && target !== null && "kind" in target
-		? (target as { kind: string }).kind
-		: "buffer";
-}
-
+/**
+ * Checks access without showing a picker or permission prompt.
+ * @param target Archive input or output location.
+ * @param mode Access required by the planned operation.
+ * @returns An advisory snapshot with a suggested recovery action.
+ * @remarks
+ * The operation must recheck access; providers and grants can change after preflight.
+ */
 export async function checkArchiveAccess(
 	target: ArchiveSource | ArchiveFileDestination | ExtractionDestination,
 	mode: ArchiveAccessMode,
 ): Promise<ArchiveAccessReport> {
-	const module = getNativeArchiveModule();
+  if (target === null || typeof target !== "object") {
+    throw new TypeError("An archive access target is required.");
+  }
 
-	const kind = targetKind(target);
+  const module = getNativeArchiveModule();
+  const platform = module.getCapabilities().platform;
 
-	switch (kind) {
-		case "file": {
-			const path = (target as any).path as string;
-			const result = await module.checkFileAccess(path, mode);
-			return mapAccessReport(result, mode);
-		}
-		case "uri":
-		case "directory-uri": {
-			const uri = (target as any).uri as string;
-			const result = await module.checkUriAccess(uri, mode);
-			return mapAccessReport(result, mode);
-		}
-		case "buffer": {
-			const platform = module.getCapabilities().platform as "ios" | "android";
-			return {
-				platform,
-				mode,
-				accessible: true,
-				readable: true,
-				writable: true,
-				persistent: true,
-				securityScoped: false,
-				providerBacked: false,
-				requiredManifestPermissions: [],
-				recoveryAction: "none" as const,
-			};
-		}
-		default:
-			throw new TypeError(`Unknown target kind: ${kind}`);
-	}
+  switch (target.kind) {
+    case "file":
+    case "directory":
+      return mapAccessReport(await module.checkFileAccess(target.path, mode), mode, platform);
+    case "uri":
+    case "directory-uri":
+      return mapAccessReport(await module.checkUriAccess(target.uri, mode), mode, platform);
+    case "buffer":
+      return {
+        platform,
+        mode,
+        accessible: true,
+        readable: true,
+        writable: true,
+        persistent: true,
+        securityScoped: false,
+        providerBacked: false,
+        requiredManifestPermissions: [],
+        recoveryAction: "none",
+      };
+    default:
+      throw new TypeError("Unsupported archive access target.");
+  }
 }

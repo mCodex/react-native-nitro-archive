@@ -1,14 +1,3 @@
-buildscript {
-  repositories {
-    google()
-    mavenCentral()
-  }
-
-  dependencies {
-    classpath "com.android.tools.build:gradle"
-  }
-}
-
 def reactNativeArchitectures() {
   def value = rootProject.getProperties().get("reactNativeArchitectures")
   return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
@@ -39,7 +28,7 @@ def getExtOrIntegerDefault(name) {
 }
 
 android {
-  namespace "com.mcodex.nitroarchive"
+  namespace "dev.modex.nitroarchive"
 
   ndkVersion getExtOrDefault("ndkVersion")
   compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
@@ -137,13 +126,13 @@ dependencies {
 
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
-  implementation "net.lingala.zip4j:zip4j:2.11.5"
+  implementation "net.lingala.zip4j:zip4j:2.11.6"
 }
 
 if (isNewArchitectureEnabled()) {
   react {
     jsRootDir = file("../src/")
     libraryName = "NitroArchive"
-    codegenJavaPackageName = "com.mcodex.nitroarchive"
+    codegenJavaPackageName = "dev.modex.nitroarchive"
   }
 }

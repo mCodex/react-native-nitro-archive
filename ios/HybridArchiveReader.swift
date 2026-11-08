@@ -4,8 +4,8 @@ import NitroModules
 final class HybridArchiveReader: HybridNativeArchiveReaderSpec {
   let format: String
   let entryCount: Double
-  let compressedSize: UInt64?
-  let totalUncompressedSize: UInt64?
+  let compressedSize: Double?
+  let totalUncompressedSize: Double?
   let encrypted: Bool
   let comment: String?
 
@@ -15,8 +15,8 @@ final class HybridArchiveReader: HybridNativeArchiveReaderSpec {
   init(inspection: ArchiveInspection, session: ArchiveEngineSession, engine: ArchiveEngine) {
     self.format = inspection.format
     self.entryCount = Double(inspection.entryCount)
-    self.compressedSize = inspection.compressedSize
-    self.totalUncompressedSize = inspection.totalUncompressedSize
+    self.compressedSize = inspection.compressedSize.map(Double.init)
+    self.totalUncompressedSize = inspection.totalUncompressedSize.map(Double.init)
     self.encrypted = inspection.encrypted
     self.comment = inspection.comment
     self.session = session
@@ -61,12 +61,12 @@ final class HybridArchiveReader: HybridNativeArchiveReaderSpec {
     }
   }
 
-  func readEntry(path: String, maxBytes: UInt64, password: String?, verifyChecksum: Bool?) throws -> Promise<ArrayBuffer> {
+  func readEntry(path: String, maxBytes: Double, password: String?, verifyChecksum: Bool?) throws -> Promise<ArrayBuffer> {
     Promise.async {
       let data = try await self.engine.readEntry(
         session: self.session,
         path: path,
-        limit: maxBytes,
+        limit: try parseNativeByteCount(maxBytes, default: 0),
         password: password
       )
 
@@ -90,13 +90,13 @@ final class HybridArchiveReader: HybridNativeArchiveReaderSpec {
       name: (entry.path as NSString).lastPathComponent,
       parentPath: (entry.path as NSString).deletingLastPathComponent,
       kind: entry.kind,
-      compressedSize: entry.compressedSize,
-      uncompressedSize: entry.uncompressedSize,
+      compressedSize: Double(entry.compressedSize),
+      uncompressedSize: Double(entry.uncompressedSize),
       encrypted: entry.encrypted,
       compressionMethod: entry.compressionMethod,
       modifiedAt: nil,
-      crc32: entry.crc32 != nil ? Double(entry.crc32!) : nil,
-      unixMode: entry.unixMode != nil ? Double(entry.unixMode!) : nil
+      crc32: entry.crc32.map(Double.init),
+      unixMode: entry.unixMode.map(Double.init)
     )
   }
 }

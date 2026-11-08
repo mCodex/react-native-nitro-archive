@@ -96,11 +96,11 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
   }
 
   func detectBuffer(data: ArrayBuffer) throws -> Promise<NativeDetectionOutcome> {
-    Promise.async {
-      guard data.size >= 4 else {
+    let bytes = Data(bytes: data.data, count: min(data.size, 4))
+    return Promise.async {
+      guard bytes.count >= 4 else {
         return NativeDetectionOutcome(ok: true, format: nil, confidence: 0, extensionMatches: nil, error: nil)
       }
-      let bytes = Data(bytes: data.data, count: data.size)
       let isZip = bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 0x03 && bytes[3] == 0x04
       return NativeDetectionOutcome(ok: true, format: isZip ? "zip" : nil, confidence: isZip ? 1.0 : 0, extensionMatches: nil, error: nil)
     }
@@ -122,8 +122,9 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
   }
 
   func openBuffer(data: ArrayBuffer, options: NativeBufferOpenOptions) throws -> Promise<NativeOpenOutcome> {
-    Promise.async {
-      await self.openInput(BufferArchiveInput(data: Data(bytes: data.data, count: data.size)))
+    let bytes = Data(bytes: data.data, count: data.size)
+    return Promise.async {
+      await self.openInput(BufferArchiveInput(data: bytes))
     }
   }
 

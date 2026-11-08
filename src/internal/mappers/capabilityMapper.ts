@@ -52,9 +52,10 @@ export function mapDetection(
 export function mapAccessReport(
 	native: NativeAccessOutcome,
 	mode: ArchiveAccessMode,
+  platform: "ios" | "android",
 ): ArchiveAccessReport {
 	return {
-		platform: native.ok ? ("ios" as const) : ("android" as const),
+		platform,
 		mode,
 		accessible: native.accessible,
 		readable: native.readable,

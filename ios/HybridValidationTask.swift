@@ -14,7 +14,7 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
   private var cachedProgress: NativeProgress
 
   var state: String {
-    cachedState
+    stateMachine.state.rawValue
   }
 
   var progress: NativeProgress {
@@ -54,6 +54,17 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
 
       let entries = self.session.entries
       let totalCount = entries.count
+      let nativeLimits = self.request.limits
+      let limits = ExtractionLimits(
+        maxEntries: nativeLimits?.maxEntries.map(Int.init) ?? 10000,
+        maxTotalUncompressedBytes: try parseNativeByteCount(nativeLimits?.maxTotalUncompressedBytes, default: 2_147_483_648),
+        maxEntryUncompressedBytes: try parseNativeByteCount(nativeLimits?.maxEntryUncompressedBytes, default: 536_870_912),
+        maxCompressionRatio: nativeLimits?.maxCompressionRatio.map(Int.init) ?? 1000,
+        maxPathDepth: nativeLimits?.maxPathDepth.map(Int.init) ?? 32,
+        maxPathBytes: nativeLimits?.maxPathBytes.map(Int.init) ?? 1024
+      )
+      _ = try ExtractionPlanner().planExtraction(entries: entries, include: nil, exclude: nil,
+        limits: limits, destination: URL(fileURLWithPath: "/"))
       let verifyChecksums = self.request.verifyChecksums ?? true
       let scanAllEntries = self.request.scanAllEntries ?? true
       let password = self.request.password
@@ -168,7 +179,7 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
         operationId: self.operationId,
         valid: isValid,
         checkedEntries: Double(checkedEntries),
-        checkedUncompressedBytes: checkedUncompressedBytes,
+        checkedUncompressedBytes: Double(checkedUncompressedBytes),
         encryptedEntries: Double(encryptedEntries),
         durationMs: duration,
         issues: issues
@@ -217,7 +228,7 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
     let snapshot = NativeProgress(
       operationId: operationId,
       phase: phase,
-      processedBytes: processedBytes,
+      processedBytes: Double(processedBytes),
       totalBytes: nil,
       processedEntries: Double(processedEntries),
       totalEntries: total,
