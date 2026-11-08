@@ -39,12 +39,7 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
     }
 
     override fun checkFileAccess(path: String, mode: String): Promise<NativeAccessOutcome> = Promise.async {
-        val accessMode = if (mode == "write" || mode == "create-children") {
-            com.mcodex.nitroarchive.application.ports.ArchiveAccessMode.WRITE
-        } else {
-            com.mcodex.nitroarchive.application.ports.ArchiveAccessMode.READ
-        }
-        val report = accessInspector.checkFileAccess(path, accessMode)
+        val report = accessInspector.checkFileAccess(path, parseAccessMode(mode))
         NativeAccessOutcome(
             ok = report.accessible,
             accessible = report.accessible,
@@ -61,12 +56,7 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
     }
 
     override fun checkUriAccess(uri: String, mode: String): Promise<NativeAccessOutcome> = Promise.async {
-        val accessMode = if (mode == "write" || mode == "create-children") {
-            com.mcodex.nitroarchive.application.ports.ArchiveAccessMode.WRITE
-        } else {
-            com.mcodex.nitroarchive.application.ports.ArchiveAccessMode.READ
-        }
-        val report = accessInspector.checkUriAccess(uri, accessMode)
+        val report = accessInspector.checkUriAccess(uri, parseAccessMode(mode))
         NativeAccessOutcome(
             ok = report.accessible,
             accessible = report.accessible,
@@ -91,7 +81,7 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
         val signature = ByteArray(4)
         raf.readFully(signature)
         raf.close()
-        val isZip = signature[0] == 0x50.toByte() && signature[1] == 0x4B.toByte() && signature[2] == 0x03.toByte() && signature[3] == 0x04.toByte()
+        val isZip = isZipSignature(signature)
         val extMatch = path.endsWith(".zip", ignoreCase = true)
         NativeDetectionOutcome(
             ok = true,
@@ -113,7 +103,7 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
                 if (signature == null || signature.size < 4) {
                     NativeDetectionOutcome(ok = true, format = null, confidence = 0.0, extensionMatches = null, error = null)
                 } else {
-                    val isZip = signature[0] == 0x50.toByte() && signature[1] == 0x4B.toByte() && signature[2] == 0x03.toByte() && signature[3] == 0x04.toByte()
+                    val isZip = isZipSignature(signature)
                     NativeDetectionOutcome(ok = true, format = if (isZip) "zip" else null, confidence = if (isZip) 1.0 else 0.0, extensionMatches = null, error = null)
                 }
             } catch (e: Exception) {
@@ -127,7 +117,7 @@ class HybridArchiveModule() : HybridArchiveModuleSpec() {
         if (bytes.size < 4) {
             return@async NativeDetectionOutcome(ok = true, format = null, confidence = 0.0, extensionMatches = null, error = null)
         }
-        val isZip = bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte() && bytes[2] == 0x03.toByte() && bytes[3] == 0x04.toByte()
+        val isZip = isZipSignature(bytes)
         NativeDetectionOutcome(
             ok = true,
             format = if (isZip) "zip" else null,

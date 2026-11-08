@@ -68,7 +68,7 @@ export class ArchiveReaderWrapper implements ArchiveReader {
 	) {
 		return this.native.readEntry(
 			path,
-			options.maxBytes,
+			Number(options.maxBytes),
 			options.password,
 			options.verifyChecksum,
 		);

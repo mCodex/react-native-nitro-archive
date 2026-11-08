@@ -9,14 +9,14 @@
   "source": "./src/index.ts",
   "sideEffects": false,
   "scripts": {
-    "test": "jest --passWithNoTests",
+    "test": "jest",
     "lint": "biome check src/",
     "format": "biome check --write src/",
     "typecheck": "tsc --noEmit",
     "clean": "git clean -dfX",
     "release": "semantic-release",
     "build": "npm run typecheck && bob build",
-    "codegen": "nitrogen --logLevel=\"debug\" && npm run build && node post-script.js"
+    "codegen": "nitrogen --logLevel=\"error\""
   },
   "keywords": [
     "react-native",
@@ -32,9 +32,6 @@
     "nitro.json",
     "README.md",
     "LICENSE"
-  ],
-  "workspaces": [
-    "example"
   ],
   "repository": "https://github.com/mcodex/react-native-nitro-archive.git",
   "author": "Mateus Andrade",
@@ -148,24 +145,25 @@
     "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.1",
-    "@react-native/jest-preset": "^0.86.0",
-    "@semantic-release/changelog": "^6.0.3",
-    "@semantic-release/git": "^10.0.1",
+    "@biomejs/biome": "^2.6.6",
+    "@react-native/jest-preset": "^0.88.1",
+    "@semantic-release/changelog": "^7.0.0",
+    "@semantic-release/git": "^11.0.1",
     "@types/jest": "^30.0.0",
-    "@types/react": "19.2.17",
+    "@types/react": "19.3.0",
     "babel-jest": "^30",
     "babel-plugin-react-compiler": "^1.0.0",
-    "conventional-changelog-conventionalcommits": "^9.3.1",
+    "conventional-changelog-conventionalcommits": "^10.4.1",
     "jest": "^30",
     "jest-environment-node": "^30",
-    "nitrogen": "^0.35.10",
-    "react": "^19.2.7",
-    "react-native": "0.86.0",
-    "react-native-builder-bob": "^0.43.0",
-    "react-native-nitro-modules": "0.35.10",
-    "semantic-release": "^25.0.5",
-    "typescript": "^6.0.3"
+    "nitrogen": "^0.37.2",
+    "react": "^19.3.1",
+    "react-native": "0.88.1",
+    "react-native-builder-bob": "^0.44.1",
+    "react-native-nitro-modules": "0.37.2",
+    "semantic-release": "^25.0.9",
+    "typescript": "^7.0.2",
+    "@react-native/babel-preset": "0.88.1"
   },
   "peerDependencies": {
     "react": "*",

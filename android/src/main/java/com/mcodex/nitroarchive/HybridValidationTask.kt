@@ -19,18 +19,7 @@ class HybridValidationTask(
     private val stateMachine = TaskStateMachine()
     private val operationId = UUID.randomUUID().toString()
     private val listeners = java.util.concurrent.CopyOnWriteArrayList<(NativeProgress) -> Unit>()
-    private var latestProgress = NativeProgress(
-        operationId = operationId,
-        phase = "idle",
-        processedBytes = 0L.toNativeByteCount(),
-        totalBytes = null,
-        processedEntries = 0.0,
-        totalEntries = null,
-        currentEntry = null,
-        bytesPerSecond = null,
-        estimatedSecondsRemaining = null,
-        percentage = null
-    )
+    private var latestProgress = createInitialProgress(operationId)
 
     override val state: String get() = stateMachine.state.name.lowercase()
     override val progress: NativeProgress get() = latestProgress
@@ -39,7 +28,7 @@ class HybridValidationTask(
         stateMachine.start()
         val startTime = System.currentTimeMillis()
         try {
-            emitProgress(phase = "validating")
+            latestProgress = emitProgress(operationId, phase = "validating", listeners = listeners)
 
             val entries = session.entries
             val issues = mutableListOf<NativeArchiveIssue>()
@@ -50,9 +39,11 @@ class HybridValidationTask(
             val maxChecksumBytes = 64L * 1024L * 1024L
             val entriesToValidate = if (scanAll) entries else entries.filter { it.encrypted }
 
-            emitProgress(
+            latestProgress = emitProgress(
+                operationId = operationId,
                 phase = "validating",
-                totalEntries = entriesToValidate.size.toDouble()
+                totalEntries = entriesToValidate.size.toDouble(),
+                listeners = listeners
             )
 
             for ((i, entry) in entriesToValidate.withIndex()) {
@@ -66,11 +57,13 @@ class HybridValidationTask(
 
                 checkedUncompressed += entry.uncompressedSize
 
-                emitProgress(
+                latestProgress = emitProgress(
+                    operationId = operationId,
                     phase = "validating",
                     processedEntries = i.toDouble(),
                     totalEntries = entriesToValidate.size.toDouble(),
-                    currentEntry = entry.path
+                    currentEntry = entry.path,
+                    listeners = listeners
                 )
 
                 if (entry.kind == "file" && (verifyChecksums || scanAll)) {
@@ -156,10 +149,12 @@ class HybridValidationTask(
                 }
             }
 
-            emitProgress(
+            latestProgress = emitProgress(
+                operationId = operationId,
                 phase = "finalizing",
                 processedEntries = entriesToValidate.size.toDouble(),
-                totalEntries = entriesToValidate.size.toDouble()
+                totalEntries = entriesToValidate.size.toDouble(),
+                listeners = listeners
             )
 
             stateMachine.succeed()
@@ -168,7 +163,7 @@ class HybridValidationTask(
                 operationId = operationId,
                 valid = issues.isEmpty(),
                 checkedEntries = entriesToValidate.size.toDouble(),
-                checkedUncompressedBytes = checkedUncompressed.toNativeByteCount(),
+                checkedUncompressedBytes = checkedUncompressed.toDouble(),
                 encryptedEntries = encryptedCount.toDouble(),
                 durationMs = (System.currentTimeMillis() - startTime).toDouble(),
                 issues = issues.toTypedArray()
@@ -190,37 +185,6 @@ class HybridValidationTask(
     override fun onProgress(callback: (progress: NativeProgress) -> Unit): () -> Unit {
         listeners.add(callback)
         return { listeners.remove(callback) }
-    }
-
-    private fun emitProgress(
-        phase: String,
-        processedBytes: Long = 0L,
-        totalBytes: Long? = null,
-        processedEntries: Double = 0.0,
-        totalEntries: Double? = null,
-        currentEntry: String? = null
-    ) {
-        val percentage = when {
-            totalBytes != null && totalBytes > 0 ->
-                minOf(processedBytes.toDouble() / totalBytes.toDouble() * 100.0, 100.0)
-            totalEntries != null && totalEntries > 0 ->
-                minOf(processedEntries / totalEntries * 100.0, 100.0)
-            else -> null
-        }
-        val snapshot = NativeProgress(
-            operationId = operationId,
-            phase = phase,
-            processedBytes = processedBytes.toNativeByteCount(),
-            totalBytes = totalBytes?.toNativeByteCount(),
-            processedEntries = processedEntries,
-            totalEntries = totalEntries,
-            currentEntry = currentEntry,
-            bytesPerSecond = null,
-            estimatedSecondsRemaining = null,
-            percentage = percentage
-        )
-        latestProgress = snapshot
-        listeners.forEach { it(snapshot) }
     }
 
     companion object {

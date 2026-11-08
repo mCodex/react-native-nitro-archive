@@ -40,8 +40,14 @@ export function mapExtractionOptions(
 	if (options.limits) {
 		native.limits = {
 			maxEntries: options.limits.maxEntries,
-			maxTotalUncompressedBytes: options.limits.maxTotalUncompressedBytes,
-			maxEntryUncompressedBytes: options.limits.maxEntryUncompressedBytes,
+			maxTotalUncompressedBytes:
+				options.limits.maxTotalUncompressedBytes != null
+					? Number(options.limits.maxTotalUncompressedBytes)
+					: undefined,
+			maxEntryUncompressedBytes:
+				options.limits.maxEntryUncompressedBytes != null
+					? Number(options.limits.maxEntryUncompressedBytes)
+					: undefined,
 			maxCompressionRatio: options.limits.maxCompressionRatio,
 			maxPathDepth: options.limits.maxPathDepth,
 			maxPathBytes: options.limits.maxPathBytes,
@@ -85,7 +91,10 @@ export function mapCreationOptions(
 		atomic: options.atomic,
 		includeEmptyDirectories: options.includeEmptyDirectories,
 		preserveTimestamps: options.preserveTimestamps,
-		maxInMemoryBytes: options.maxInMemoryBytes,
+		maxInMemoryBytes:
+			options.maxInMemoryBytes != null
+				? Number(options.maxInMemoryBytes)
+				: undefined,
 		progressIntervalMs: options.progressIntervalMs,
 		encryptionMethod: encryption?.method,
 		encryptionPassword: encryption?.password,
@@ -127,7 +136,10 @@ export function mapOpenOptions(
 	const base = {
 		password: options?.password,
 		maxEntriesToIndex: options?.maxEntriesToIndex,
-		maxCentralDirectoryBytes: options?.maxCentralDirectoryBytes,
+		maxCentralDirectoryBytes:
+			options?.maxCentralDirectoryBytes != null
+				? Number(options.maxCentralDirectoryBytes)
+				: undefined,
 	};
 	return {
 		path: base,

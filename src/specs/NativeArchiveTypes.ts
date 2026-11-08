@@ -1,4 +1,3 @@
-import type { UInt64 } from "react-native-nitro-modules";
 import type { ArchiveErrorCode } from "../errors";
 
 export type NativePlatform = "ios" | "android";
@@ -24,8 +23,8 @@ export interface NativeArchiveEntry {
 	name: string;
 	parentPath: string;
 	kind: string;
-	compressedSize: UInt64;
-	uncompressedSize: UInt64;
+	compressedSize: number;
+	uncompressedSize: number;
 	encrypted: boolean;
 	compressionMethod: string;
 	modifiedAt?: number;
@@ -75,8 +74,8 @@ export interface NativeAccessOutcome {
 export interface NativeProgress {
 	operationId: string;
 	phase: string;
-	processedBytes: UInt64;
-	totalBytes?: UInt64;
+	processedBytes: number;
+	totalBytes?: number;
 	processedEntries: number;
 	totalEntries?: number;
 	currentEntry?: string;
@@ -89,7 +88,7 @@ export interface NativeExtractionResult {
 	operationId: string;
 	extractedEntries: number;
 	skippedEntries: number;
-	writtenBytes: UInt64;
+	writtenBytes: number;
 	durationMs: number;
 	atomicWriteApplied: boolean;
 	warnings: readonly NativeWarning[];
@@ -98,8 +97,8 @@ export interface NativeExtractionResult {
 export interface NativeCreationResult {
 	operationId: string;
 	entryCount: number;
-	inputBytes: UInt64;
-	outputBytes: UInt64;
+	inputBytes: number;
+	outputBytes: number;
 	durationMs: number;
 	atomicWriteApplied: boolean;
 	warnings: readonly NativeWarning[];
@@ -109,7 +108,7 @@ export interface NativeValidationResult {
 	operationId: string;
 	valid: boolean;
 	checkedEntries: number;
-	checkedUncompressedBytes: UInt64;
+	checkedUncompressedBytes: number;
 	encryptedEntries: number;
 	durationMs: number;
 	issues: readonly NativeArchiveIssue[];
@@ -132,20 +131,20 @@ export interface NativeWarning {
 export interface NativePathOpenOptions {
 	password?: string;
 	maxEntriesToIndex?: number;
-	maxCentralDirectoryBytes?: UInt64;
+	maxCentralDirectoryBytes?: number;
 }
 
 export interface NativeUriOpenOptions {
 	password?: string;
 	maxEntriesToIndex?: number;
-	maxCentralDirectoryBytes?: UInt64;
+	maxCentralDirectoryBytes?: number;
 	iosSecurityScope?: string;
 }
 
 export interface NativeBufferOpenOptions {
 	password?: string;
 	maxEntriesToIndex?: number;
-	maxCentralDirectoryBytes?: UInt64;
+	maxCentralDirectoryBytes?: number;
 	name?: string;
 }
 
@@ -167,8 +166,8 @@ export interface NativeExtractionRequest {
 
 export interface NativeExtractionLimits {
 	maxEntries?: number;
-	maxTotalUncompressedBytes?: UInt64;
-	maxEntryUncompressedBytes?: UInt64;
+	maxTotalUncompressedBytes?: number;
+	maxEntryUncompressedBytes?: number;
 	maxCompressionRatio?: number;
 	maxPathDepth?: number;
 	maxPathBytes?: number;
@@ -186,7 +185,7 @@ export interface NativeCreationRequest {
 	atomic?: boolean;
 	includeEmptyDirectories?: boolean;
 	preserveTimestamps?: boolean;
-	maxInMemoryBytes?: UInt64;
+	maxInMemoryBytes?: number;
 	progressIntervalMs?: number;
 	encryptionMethod?: string;
 	encryptionPassword?: string;

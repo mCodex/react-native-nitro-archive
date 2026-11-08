@@ -1,4 +1,4 @@
-import type { HybridObject, UInt64 } from "react-native-nitro-modules";
+import type { HybridObject } from "react-native-nitro-modules";
 import type {
 	NativeExtractionTask,
 	NativeValidationTask,
@@ -14,8 +14,8 @@ export interface NativeArchiveReader
 	extends HybridObject<{ ios: "swift"; android: "kotlin" }> {
 	readonly format: string;
 	readonly entryCount: number;
-	readonly compressedSize?: UInt64;
-	readonly totalUncompressedSize?: UInt64;
+	readonly compressedSize?: number;
+	readonly totalUncompressedSize?: number;
 	readonly encrypted: boolean;
 	readonly comment?: string;
 
@@ -28,7 +28,7 @@ export interface NativeArchiveReader
 	getEntry(path: string): Promise<NativeArchiveEntry | undefined>;
 	readEntry(
 		path: string,
-		maxBytes: UInt64,
+		maxBytes: number,
 		password?: string,
 		verifyChecksum?: boolean,
 	): Promise<ArrayBuffer>;

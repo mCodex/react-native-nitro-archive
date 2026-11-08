@@ -17,8 +17,8 @@ class HybridArchiveReader(
 
     override val format: String get() = inspection.format
     override val entryCount: Double get() = inspection.entryCount.toDouble()
-    override val compressedSize: ULong? get() = inspection.compressedSize?.toULong()
-    override val totalUncompressedSize: ULong? get() = inspection.totalUncompressedSize?.toULong()
+    override val compressedSize: Double? get() = inspection.compressedSize?.toDouble()
+    override val totalUncompressedSize: Double? get() = inspection.totalUncompressedSize?.toDouble()
     override val encrypted: Boolean get() = inspection.encrypted
     override val comment: String? get() = inspection.comment
 
@@ -59,7 +59,7 @@ class HybridArchiveReader(
         session.entry(at = path)?.let { toNativeEntry(it) }
     }
 
-    override fun readEntry(path: String, maxBytes: ULong, password: String?, verifyChecksum: Boolean?): Promise<ArrayBuffer> = Promise.async {
+    override fun readEntry(path: String, maxBytes: Double, password: String?, verifyChecksum: Boolean?): Promise<ArrayBuffer> = Promise.async {
         val data = engine.readEntry(
             session = session,
             path = path,
@@ -86,8 +86,8 @@ class HybridArchiveReader(
             name = name,
             parentPath = parent,
             kind = entry.kind,
-            compressedSize = entry.compressedSize,
-            uncompressedSize = entry.uncompressedSize,
+            compressedSize = entry.compressedSize.toDouble(),
+            uncompressedSize = entry.uncompressedSize.toDouble(),
             encrypted = entry.encrypted,
             compressionMethod = entry.compressionMethod,
             modifiedAt = null,

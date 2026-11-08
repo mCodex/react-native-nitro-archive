@@ -23,18 +23,7 @@ class HybridExtractionTask(
     private val stateMachine = TaskStateMachine()
     private val operationId = UUID.randomUUID().toString()
     private val listeners = java.util.concurrent.CopyOnWriteArrayList<(NativeProgress) -> Unit>()
-    private var latestProgress = NativeProgress(
-        operationId = operationId,
-        phase = "idle",
-        processedBytes = 0L.toNativeByteCount(),
-        totalBytes = null,
-        processedEntries = 0.0,
-        totalEntries = null,
-        currentEntry = null,
-        bytesPerSecond = null,
-        estimatedSecondsRemaining = null,
-        percentage = null
-    )
+    private var latestProgress = createInitialProgress(operationId)
 
     override val state: String get() = stateMachine.state.name.lowercase()
     override val progress: NativeProgress get() = latestProgress
@@ -42,7 +31,7 @@ class HybridExtractionTask(
     override fun start(): Promise<NativeExtractionResult> = Promise.async {
         stateMachine.start()
         val startTime = System.currentTimeMillis()
-        emitProgress(phase = "preparing")
+        latestProgress = emitProgress(operationId, phase = "preparing", listeners = listeners)
 
         val destinationPath = when (request.destinationKind) {
             "directory" -> request.destinationPath
@@ -52,8 +41,8 @@ class HybridExtractionTask(
 
         val limits = ExtractionLimits(
             maxEntries = request.limits?.maxEntries?.toInt() ?: 10000,
-            maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes ?: 2_147_483_648L,
-            maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes ?: 536_870_912L,
+            maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes?.toLong() ?: 2_147_483_648L,
+            maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes?.toLong() ?: 536_870_912L,
             maxCompressionRatio = request.limits?.maxCompressionRatio?.toInt() ?: 1000,
             maxPathDepth = request.limits?.maxPathDepth?.toInt() ?: 32,
             maxPathBytes = request.limits?.maxPathBytes?.toInt() ?: 1024
@@ -85,9 +74,11 @@ class HybridExtractionTask(
         val cleanupOnCancel = request.cleanupOnCancel ?: true
 
         try {
-            emitProgress(
+            latestProgress = emitProgress(
+                operationId = operationId,
                 phase = "extracting",
-                totalEntries = plan.totalEntries.toDouble()
+                totalEntries = plan.totalEntries.toDouble(),
+                listeners = listeners
             )
 
             val summary = useCase.execute(
@@ -100,11 +91,13 @@ class HybridExtractionTask(
                     if (stateMachine.state == TaskState.CANCELLING) {
                         throw ArchiveDomainError.OperationCancelled()
                     }
-                    emitProgress(
+                    latestProgress = emitProgress(
+                        operationId = operationId,
                         phase = "extracting",
                         processedEntries = index.toDouble(),
                         totalEntries = total.toDouble(),
-                        currentEntry = path
+                        currentEntry = path,
+                        listeners = listeners
                     )
                 }
             )
@@ -113,10 +106,12 @@ class HybridExtractionTask(
                 throw ArchiveDomainError.OperationCancelled()
             }
 
-            emitProgress(
+            latestProgress = emitProgress(
+                operationId = operationId,
                 phase = "finalizing",
                 processedEntries = plan.totalEntries.toDouble(),
-                totalEntries = plan.totalEntries.toDouble()
+                totalEntries = plan.totalEntries.toDouble(),
+                listeners = listeners
             )
             output.commit()
 
@@ -127,7 +122,7 @@ class HybridExtractionTask(
                 operationId = operationId,
                 extractedEntries = summary.extractedEntries.toDouble(),
                 skippedEntries = summary.skippedEntries.toDouble(),
-                writtenBytes = summary.writtenBytes.toNativeByteCount(),
+                writtenBytes = summary.writtenBytes.toDouble(),
                 durationMs = duration.toDouble(),
                 atomicWriteApplied = false,
                 warnings = emptyArray()
@@ -152,36 +147,5 @@ class HybridExtractionTask(
     override fun onProgress(callback: (progress: NativeProgress) -> Unit): () -> Unit {
         listeners.add(callback)
         return { listeners.remove(callback) }
-    }
-
-    private fun emitProgress(
-        phase: String,
-        processedBytes: Long = 0L,
-        totalBytes: Long? = null,
-        processedEntries: Double = 0.0,
-        totalEntries: Double? = null,
-        currentEntry: String? = null
-    ) {
-        val percentage = when {
-            totalBytes != null && totalBytes > 0 ->
-                minOf(processedBytes.toDouble() / totalBytes.toDouble() * 100.0, 100.0)
-            totalEntries != null && totalEntries > 0 ->
-                minOf(processedEntries / totalEntries * 100.0, 100.0)
-            else -> null
-        }
-        val snapshot = NativeProgress(
-            operationId = operationId,
-            phase = phase,
-            processedBytes = processedBytes.toNativeByteCount(),
-            totalBytes = totalBytes?.toNativeByteCount(),
-            processedEntries = processedEntries,
-            totalEntries = totalEntries,
-            currentEntry = currentEntry,
-            bytesPerSecond = null,
-            estimatedSecondsRemaining = null,
-            percentage = percentage
-        )
-        latestProgress = snapshot
-        listeners.forEach { it(snapshot) }
     }
 }

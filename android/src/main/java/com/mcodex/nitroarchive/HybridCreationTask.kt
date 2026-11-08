@@ -22,18 +22,7 @@ class HybridCreationTask(
     private val stateMachine = TaskStateMachine()
     private val operationId = UUID.randomUUID().toString()
     private val listeners = java.util.concurrent.CopyOnWriteArrayList<(NativeProgress) -> Unit>()
-    private var latestProgress = NativeProgress(
-        operationId = operationId,
-        phase = "idle",
-        processedBytes = 0L.toNativeByteCount(),
-        totalBytes = null,
-        processedEntries = 0.0,
-        totalEntries = null,
-        currentEntry = null,
-        bytesPerSecond = null,
-        estimatedSecondsRemaining = null,
-        percentage = null
-    )
+    private var latestProgress = createInitialProgress(operationId)
 
     override val state: String get() = stateMachine.state.name.lowercase()
     override val progress: NativeProgress get() = latestProgress
@@ -42,7 +31,7 @@ class HybridCreationTask(
         stateMachine.start()
         val startTime = System.currentTimeMillis()
         try {
-            emitProgress(phase = "preparing")
+            emitProgress(operationId, phase = "preparing", listeners = listeners)
 
             val output = when (request.destinationKind) {
                 "file" -> LocalFileOutput(
@@ -91,25 +80,27 @@ class HybridCreationTask(
                 encryptionPassword = request.encryptionPassword
             )
 
-            emitProgress(phase = "compressing")
+            latestProgress = emitProgress(operationId, phase = "compressing", listeners = listeners)
 
             val useCase = CreateArchiveUseCase(engine)
             val result = useCase.execute(
                 plan = plan,
                 output = output,
                 onProgress = { snapshot ->
-                    emitProgress(
+                    latestProgress = emitProgress(
+                        operationId = operationId,
                         phase = "compressing",
                         processedBytes = snapshot.processedBytes,
                         totalBytes = snapshot.totalBytes,
                         processedEntries = snapshot.processedEntries.toDouble(),
                         totalEntries = snapshot.totalEntries?.toDouble(),
-                        currentEntry = snapshot.currentEntry
+                        currentEntry = snapshot.currentEntry,
+                        listeners = listeners
                     )
                 }
             )
 
-            emitProgress(phase = "finalizing")
+            latestProgress = emitProgress(operationId, phase = "finalizing", listeners = listeners)
 
             val duration = System.currentTimeMillis() - startTime
             stateMachine.succeed()
@@ -117,8 +108,8 @@ class HybridCreationTask(
             NativeCreationResult(
                 operationId = operationId,
                 entryCount = result.entryCount.toDouble(),
-                inputBytes = result.inputBytes.toNativeByteCount(),
-                outputBytes = result.outputBytes.toNativeByteCount(),
+                inputBytes = result.inputBytes.toDouble(),
+                outputBytes = result.outputBytes.toDouble(),
                 durationMs = duration.toDouble(),
                 atomicWriteApplied = false,
                 warnings = emptyArray()
@@ -186,36 +177,5 @@ class HybridCreationTask(
 
         addDirectory(root, baseArchivePath)
         return output
-    }
-
-    private fun emitProgress(
-        phase: String,
-        processedBytes: Long = 0L,
-        totalBytes: Long? = null,
-        processedEntries: Double = 0.0,
-        totalEntries: Double? = null,
-        currentEntry: String? = null
-    ) {
-        val percentage = when {
-            totalBytes != null && totalBytes > 0 ->
-                minOf(processedBytes.toDouble() / totalBytes.toDouble() * 100.0, 100.0)
-            totalEntries != null && totalEntries > 0 ->
-                minOf(processedEntries / totalEntries * 100.0, 100.0)
-            else -> null
-        }
-        val snapshot = NativeProgress(
-            operationId = operationId,
-            phase = phase,
-            processedBytes = processedBytes.toNativeByteCount(),
-            totalBytes = totalBytes?.toNativeByteCount(),
-            processedEntries = processedEntries,
-            totalEntries = totalEntries,
-            currentEntry = currentEntry,
-            bytesPerSecond = null,
-            estimatedSecondsRemaining = null,
-            percentage = percentage
-        )
-        latestProgress = snapshot
-        listeners.forEach { it(snapshot) }
     }
 }
