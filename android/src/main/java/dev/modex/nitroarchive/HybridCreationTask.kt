@@ -90,9 +90,8 @@ class HybridCreationTask(
                         operationId = operationId,
                         phase = "compressing",
                         processedBytes = snapshot.processedBytes,
-                        totalBytes = snapshot.totalBytes,
                         processedEntries = snapshot.processedEntries.toDouble(),
-                        totalEntries = snapshot.totalEntries?.toDouble(),
+                        totalEntries = snapshot.totalEntries.toDouble(),
                         currentEntry = snapshot.currentEntry,
                         listeners = listeners
                     )

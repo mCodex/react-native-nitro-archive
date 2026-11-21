@@ -7,7 +7,7 @@ import dev.modex.nitroarchive.application.ports.ArchiveEngine
 import dev.modex.nitroarchive.application.ports.ArchiveEngineSession
 import dev.modex.nitroarchive.application.ports.ArchiveInspection
 import dev.modex.nitroarchive.application.ports.EntryDescriptor
-import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.infrastructure.zip.RustZipArchive
 
 class HybridArchiveReader(
     private val inspection: ArchiveInspection,
@@ -60,8 +60,8 @@ class HybridArchiveReader(
     }
 
     override fun readEntry(path: String, maxBytes: Double, password: String?, verifyChecksum: Boolean?): Promise<ArrayBuffer> = Promise.async {
-        val data = engine.readEntry(
-            session = session,
+        val data = RustZipArchive.read(
+            data = session.archiveData,
             path = path,
             limit = maxBytes.toLong(),
             password = password
@@ -74,7 +74,7 @@ class HybridArchiveReader(
     }
 
     override fun startValidation(request: NativeValidationRequest): HybridNativeValidationTaskSpec {
-        return HybridValidationTask(session = session, engine = engine, request = request)
+        return HybridValidationTask(session = session, request = request)
     }
 
     private fun toNativeEntry(entry: EntryDescriptor): NativeArchiveEntry {

@@ -16,7 +16,16 @@ add_compile_options(-UANDROID)
 # Define C++ library and add all sources
 add_library(${PACKAGE_NAME} SHARED
         src/main/cpp/cpp-adapter.cpp
+        src/main/cpp/rust-zip-archive.cpp
 )
+
+set(RUST_ARCHIVE "${CMAKE_CURRENT_SOURCE_DIR}/../rust/artifacts/android/${ANDROID_ABI}/libnitro_archive_core.a")
+if (NOT EXISTS "${RUST_ARCHIVE}")
+  message(FATAL_ERROR "Missing Rust archive for ${ANDROID_ABI}. Build it with rust/build-android.sh.")
+endif()
+add_library(NitroArchiveCore STATIC IMPORTED)
+set_target_properties(NitroArchiveCore PROPERTIES IMPORTED_LOCATION "${RUST_ARCHIVE}")
+target_include_directories(${PACKAGE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../rust/include")
 
 # Add Nitrogen specs :)
 include(${CMAKE_SOURCE_DIR}/../nitrogen/generated/android/NitroArchive+autolinking.cmake)
@@ -32,6 +41,7 @@ find_library(LOG_LIB log)
 # Link all libraries together
 target_link_libraries(
         ${PACKAGE_NAME}
+        NitroArchiveCore
         ${LOG_LIB}
         android                                   # <-- Android core
 )

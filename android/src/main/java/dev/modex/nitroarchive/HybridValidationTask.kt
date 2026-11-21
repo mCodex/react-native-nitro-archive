@@ -4,17 +4,15 @@ import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.Promise
 import dev.modex.nitroarchive.application.ExtractionPlanner
 import dev.modex.nitroarchive.domain.ExtractionLimits
-import dev.modex.nitroarchive.application.ports.ArchiveEngine
 import dev.modex.nitroarchive.application.ports.ArchiveEngineSession
 import dev.modex.nitroarchive.domain.ArchiveDomainError
 import dev.modex.nitroarchive.domain.TaskState
 import dev.modex.nitroarchive.domain.TaskStateMachine
+import dev.modex.nitroarchive.infrastructure.zip.RustZipArchive
 import java.util.UUID
-import java.util.zip.CRC32
 
 class HybridValidationTask(
     private val session: ArchiveEngineSession,
-    private val engine: ArchiveEngine,
     private val request: NativeValidationRequest
 ) : HybridNativeValidationTaskSpec() {
 
@@ -99,51 +97,22 @@ class HybridValidationTask(
                         continue
                     }
                     try {
-                        val data = engine.readEntry(
-                            session = session,
+                        RustZipArchive.read(
+                            data = session.archiveData,
                             path = entry.path,
                             limit = entry.uncompressedSize.coerceAtLeast(1),
                             password = request.password
                         )
-
-                        if (verifyChecksums && entry.crc32 != null && data.isNotEmpty()) {
-                            val actualCrc = crc32(data)
-                            if (actualCrc != entry.crc32) {
-                                issues.add(NativeArchiveIssue(
-                                    code = "E_CHECKSUM_MISMATCH",
-                                    severity = "error",
-                                    message = "CRC mismatch for entry: ${entry.path}",
-                                    entryPath = entry.path,
-                                    entryIndex = entry.index.toDouble()
-                                ))
-                            }
-                        }
-                    } catch (e: ArchiveDomainError.ChecksumMismatch) {
-                        issues.add(NativeArchiveIssue(
-                            code = "E_CHECKSUM_MISMATCH",
-                            severity = "error",
-                            message = e.message ?: "CRC mismatch",
-                            entryPath = entry.path,
-                            entryIndex = entry.index.toDouble()
-                        ))
-                    } catch (e: ArchiveDomainError.BadPassword) {
-                        issues.add(NativeArchiveIssue(
-                            code = e.code,
-                            severity = "error",
-                            message = e.message ?: "Incorrect password",
-                            entryPath = entry.path,
-                            entryIndex = entry.index.toDouble()
-                        ))
-                    } catch (e: ArchiveDomainError.UnsupportedEncryption) {
-                        issues.add(NativeArchiveIssue(
-                            code = e.code,
-                            severity = "error",
-                            message = e.message ?: "Unsupported encryption",
-                            entryPath = entry.path,
-                            entryIndex = entry.index.toDouble()
-                        ))
                     } catch (e: ArchiveDomainError.OperationCancelled) {
                         throw e
+                    } catch (e: ArchiveDomainError) {
+                        issues.add(NativeArchiveIssue(
+                            code = e.code,
+                            severity = "error",
+                            message = e.message ?: e.code,
+                            entryPath = entry.path,
+                            entryIndex = entry.index.toDouble()
+                        ))
                     } catch (e: Exception) {
                         if (scanAll) {
                             issues.add(NativeArchiveIssue(
@@ -196,13 +165,5 @@ class HybridValidationTask(
     override fun onProgress(callback: (progress: NativeProgress) -> Unit): () -> Unit {
         listeners.add(callback)
         return { listeners.remove(callback) }
-    }
-
-    companion object {
-        fun crc32(data: ByteArray): UInt {
-            val crc = CRC32()
-            crc.update(data)
-            return crc.value.toUInt()
-        }
     }
 }

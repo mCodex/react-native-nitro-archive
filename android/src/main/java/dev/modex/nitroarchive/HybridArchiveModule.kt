@@ -1,14 +1,15 @@
 package dev.modex.nitroarchive
 
-import android.content.Context
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.ArrayBuffer
 import com.margelo.nitro.core.Promise
-import dev.modex.nitroarchive.application.CreateArchiveUseCase
 import dev.modex.nitroarchive.application.OpenArchiveUseCase
 import dev.modex.nitroarchive.domain.ArchiveDomainError
 import dev.modex.nitroarchive.infrastructure.memory.BufferArchiveInput
 import dev.modex.nitroarchive.infrastructure.storage.LocalFileInput
+import dev.modex.nitroarchive.infrastructure.storage.MAX_ARCHIVE_INPUT_BYTES
+import dev.modex.nitroarchive.infrastructure.storage.readArchiveBytes
+import dev.modex.nitroarchive.infrastructure.zip.RustZipArchive
 import dev.modex.nitroarchive.infrastructure.zip.Zip4jEngine
 import dev.modex.nitroarchive.platform.AndroidArchiveAccessInspector
 import java.io.File
@@ -19,6 +20,7 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
         com.margelo.nitro.NitroModules.applicationContext?.applicationContext
             ?: throw ArchiveDomainError.Internal("NitroModules not initialized")
     private val engine = Zip4jEngine()
+    private val openArchive = OpenArchiveUseCase(RustZipArchive::inspect)
     private val accessInspector by lazy { AndroidArchiveAccessInspector(context) }
 
     override fun getCapabilities(): NativeArchiveCapabilities {
@@ -134,8 +136,7 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
     override fun openFile(path: String, options: NativePathOpenOptions): Promise<NativeOpenOutcome> = Promise.async {
         try {
             val input = LocalFileInput(path)
-            val useCase = OpenArchiveUseCase(engine)
-            val result = useCase.execute(input)
+            val result = openArchive.execute(input)
             val reader = HybridArchiveReader(
                 inspection = result.inspection,
                 session = result.session,
@@ -172,10 +173,9 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
             val ctx = context
             val inputStream = ctx.contentResolver.openInputStream(androidUri)
                 ?: throw ArchiveDomainError.FileNotAvailable("Cannot open input stream for URI: $uri")
-            val bytes = inputStream.use { it.readBytes() }
+            val bytes = inputStream.use { it.readArchiveBytes() }
             val bufferInput = BufferArchiveInput(bytes)
-            val useCase = OpenArchiveUseCase(engine)
-            val result = useCase.execute(bufferInput)
+            val result = openArchive.execute(bufferInput)
             val reader = HybridArchiveReader(
                 inspection = result.inspection,
                 session = result.session,
@@ -197,12 +197,11 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
     }
 
     override fun openBuffer(data: ArrayBuffer, options: NativeBufferOpenOptions): Promise<NativeOpenOutcome> {
-        val bytes = data.toByteArray()
+        val bytes = if (data.size <= MAX_ARCHIVE_INPUT_BYTES) data.toByteArray() else null
         return Promise.async {
         try {
-            val input = BufferArchiveInput(bytes)
-            val useCase = OpenArchiveUseCase(engine)
-            val result = useCase.execute(input)
+            val input = BufferArchiveInput(bytes ?: throw ArchiveDomainError.ArchiveTooLarge())
+            val result = openArchive.execute(input)
             val reader = HybridArchiveReader(
                 inspection = result.inspection,
                 session = result.session,
