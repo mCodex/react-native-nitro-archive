@@ -1,0 +1,27 @@
+name: Rust host coverage
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RUSTUP_TOOLCHAIN: 1.100.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned Rust toolchain with LLVM tools
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component llvm-tools
+      - name: Require 90% line coverage for Rust host production sources
+        run: python3 rust/check-coverage.py
