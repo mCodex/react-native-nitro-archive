@@ -1,11 +1,11 @@
 # react-native-nitro-archive
 
-ZIP creation, inspection, bounded reads and extraction for React Native, powered by Nitro Modules. Archive work runs in Swift and Kotlin; binary inputs use paths, URIs or `ArrayBuffer`.
+ZIP creation, inspection, bounded reads and extraction for React Native, powered by Nitro Modules. Rust handles ZIP inspection and bounded entry reads through Swift and Kotlin adapters. Binary inputs use paths, URIs or `ArrayBuffer`.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 > [!WARNING]
-> This package is pre-1.0. Native compatibility, external-document access and the security conformance suite are being completed. Review the [compatibility notes](docs/compatibility.md) before adopting it for untrusted archives.
+> This package is pre-1.0. Native compatibility, external-document access and the security conformance suite are being completed. Review the supported operations and limits before processing untrusted archives.
 
 ## 📦 Install
 
@@ -15,7 +15,7 @@ yarn add react-native-nitro-archive react-native-nitro-modules
 
 For iOS, run `bundle exec pod install` in your app’s `ios` directory, then rebuild the app. React Native and Nitro Modules are peer dependencies; use a compatible pair for your app.
 
-**Expo requires a development build.** This package contains custom native code and does not run in the standard Expo Go app. See [Expo and platform access](docs/platform-access.md).
+**Expo requires a development build** to load the archive module's native code.
 
 ## Open and extract a ZIP
 
@@ -106,19 +106,16 @@ async function runTask(task: ArchiveTask<unknown>) {
 }
 ```
 
-Branch on error codes, not message text. Avoid logging passwords or document contents. See [security and limits](docs/security-and-limits.md) and [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+Handle errors by code and keep passwords and document contents out of logs.
 
 ## Learn more
-
-- [Platform access, URI grants and Expo](docs/platform-access.md)
-- [Compatibility, imports and bundle size](docs/compatibility.md)
-- [Format-extension assessment](docs/formats.md)
-- [Implementation plan and verification gates](IMPLEMENTATION_PLAN.md)
 
 Use root named exports for the core API. Pure constructors also have subpaths such as `react-native-nitro-archive/sources`; React hooks live under `react-native-nitro-archive/react`. Hover documentation describes options, units and lifecycle requirements.
 
 ## Contribute
 
-Public changes start in TypeScript. Keep Swift and Kotlin behavior aligned, add regression tests for safety fixes, and regenerate Nitro bindings rather than editing generated files. Run the repository’s typecheck, tests, build and native verification before proposing a release.
+Public changes start in TypeScript. Keep Android and iOS behavior aligned, add regression tests for safety fixes, and regenerate Nitro bindings when the bridge contract changes.
+
+Building from source requires the platform-specific [Rust build instructions](rust/README.md).
 
 [MIT](LICENSE). Native engine dependencies retain their own licenses.
