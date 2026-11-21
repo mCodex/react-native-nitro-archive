@@ -1375,7 +1375,7 @@ PODS:
     - Yoga
   - react-native-nitro-archive (0.1.0):
     - NitroModules
-    - SSZipArchive (~> 2.4)
+    - SSZipArchive (= 2.6.0)
   - react-native-safe-area-context (5.11.1):
     - hermes-engine
     - RCTRequired
@@ -1891,7 +1891,7 @@ PODS:
     - Yoga
   - SocketRocket (0.7.1):
     - ReactNativeDependencies
-  - SSZipArchive (2.4.3)
+  - SSZipArchive (2.6.0)
   - Yoga (0.0.0):
     - React-Core-prebuilt
 
@@ -2224,7 +2224,7 @@ SPEC CHECKSUMS:
   React-Mapbuffer: 50c4d7a1ff3f18413cbaf897c8b5ce46baa491b3
   React-microtasksnativemodule: 0207d6133274a7cbfc3d0dae326e3055c8cfcf9e
   React-mutationobservernativemodule: b97a67c29f724d18a92379e7390f24350acb433a
-  react-native-nitro-archive: fadabce4ef857b38dd9fedda82eec9a39d5e62f1
+  react-native-nitro-archive: b1ee2306105a2d3e04d3a1310a4a001a86331a81
   react-native-safe-area-context: 56700b839169ce88ffcec68c40447916fe512462
   React-NativeModulesApple: 8cfb2f308f48c48068c96b932e7f0e4297c23342
   React-networking: 3325cf73ecbdaacab0da91260b094baf36061a56
@@ -2265,9 +2265,9 @@ SPEC CHECKSUMS:
   ReactNativeDependencies: a5164c3ebbe90d992022b5d9cbabbf770a6d7d05
   RNScreens: f15a5bda1ddeff8575b8ce41d83885b67129f84b
   SocketRocket: 37aec555668fb852ec12e3c0de59a86ca58f0871
-  SSZipArchive: fe6a26b2a54d5a0890f2567b5cc6de5caa600aef
+  SSZipArchive: 8a6ee5677c8e304bebc109e39cf0da91ccef22ea
   Yoga: d1c536142c5ff8ec8cd856ab2a7c227a1d875c8e
 
-PODFILE CHECKSUM: 00264077eb384fe90ac1a7e11acc5363c2d284a7
+PODFILE CHECKSUM: ef19c29eed54ad0ba904d8e6932e43347a8a9494
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.17.0

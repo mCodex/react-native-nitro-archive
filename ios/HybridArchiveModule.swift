@@ -122,6 +122,10 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
   }
 
   func openBuffer(data: ArrayBuffer, options: NativeBufferOpenOptions) throws -> Promise<NativeOpenOutcome> {
+    guard data.size <= 512 * 1024 * 1024 else {
+      return Promise.async { self.openFailure(.archiveTooLarge) }
+    }
+
     let bytes = Data(bytes: data.data, count: data.size)
     return Promise.async {
       await self.openInput(BufferArchiveInput(data: bytes))
@@ -138,10 +142,17 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
         engine: self.engine
       ), error: nil)
     } catch let error as ArchiveDomainError {
-      return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: self.mapCode(error.code), message: "\(error)", operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
+      return openFailure(error)
     } catch {
       return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: .eIo, message: error.localizedDescription, operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
     }
+  }
+
+  private func openFailure(_ error: ArchiveDomainError) -> NativeOpenOutcome {
+    NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(
+      code: mapCode(error.code), message: "\(error)", operationId: nil, entryPath: nil,
+      source: nil, destination: nil, nativeCode: nil
+    ))
   }
 
   func create(request: NativeCreationRequest) throws -> (any HybridNativeCreationTaskSpec) {

@@ -39,72 +39,18 @@ static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, BOOL e
   return YES;
 }
 
-@implementation NitroArchiveZipEntryReader
-
-+ (nullable NSData *)readEntryAtPath:(NSString *)archivePath
-                            entryPath:(NSString *)entryPath
-                             password:(nullable NSString *)password
-                                limit:(uint64_t)limit
-                                error:(NSError **)error {
-  unzFile zip = unzOpen64(archivePath.fileSystemRepresentation);
-  if (zip == NULL) {
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorOpenArchive, @"Could not open ZIP archive");
-    return nil;
+static int NitroArchiveLocateEntry(unzFile zip, NSUInteger entryIndex) {
+  int status = unzGoToFirstFile(zip);
+  for (NSUInteger index = 0; index < entryIndex && status == UNZ_OK; index++) {
+    status = unzGoToNextFile(zip);
   }
-
-  if (unzLocateFile(zip, [entryPath cStringUsingEncoding:NSUTF8StringEncoding], NULL) != UNZ_OK) {
-    unzClose(zip);
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorEntryNotFound, @"Entry not found in ZIP archive");
-    return nil;
-  }
-  unz_file_info64 info = {};
-  if (unzGetCurrentFileInfo64(zip, &info, NULL, 0, NULL, 0, NULL, 0) != UNZ_OK) {
-    unzClose(zip);
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorRead, @"Could not read ZIP entry metadata");
-    return nil;
-  }
-  BOOL encrypted = (info.flag & 1) != 0;
-  if (!NitroArchiveOpenCurrentEntry(zip, password, encrypted, error)) {
-    unzClose(zip);
-    return nil;
-  }
-  if (info.uncompressed_size > limit) {
-    unzCloseCurrentFile(zip);
-    unzClose(zip);
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorEntryTooLarge, @"ZIP entry exceeds read limit");
-    return nil;
-  }
-
-  NSMutableData *data = [NSMutableData dataWithCapacity:(NSUInteger)MIN(info.uncompressed_size, (uint64_t)NSUIntegerMax)];
-  uint8_t buffer[64 * 1024];
-  uint64_t total = 0;
-  int read = 0;
-  while ((read = unzReadCurrentFile(zip, buffer, sizeof(buffer))) > 0) {
-    total += (uint64_t)read;
-    if (total > limit) {
-      unzCloseCurrentFile(zip);
-      unzClose(zip);
-      NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorEntryTooLarge, @"ZIP entry exceeds read limit");
-      return nil;
-    }
-    [data appendBytes:buffer length:(NSUInteger)read];
-  }
-
-  int closeRet = unzCloseCurrentFile(zip);
-  unzClose(zip);
-  if (read < 0) {
-    NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorRead, @"Could not read ZIP entry");
-    return nil;
-  }
-  if (closeRet != UNZ_OK) {
-    NitroArchiveSetError(error, encrypted && password.length > 0 ? NitroArchiveZipEntryReaderErrorBadPassword : NitroArchiveZipEntryReaderErrorChecksum, @"ZIP entry checksum failed");
-    return nil;
-  }
-  return data;
+  return status;
 }
 
+@implementation NitroArchiveZipEntryReader
+
 + (BOOL)extractEntryAtPath:(NSString *)archivePath
-                 entryPath:(NSString *)entryPath
+                entryIndex:(NSUInteger)entryIndex
             destinationPath:(NSString *)destinationPath
                   password:(nullable NSString *)password
                      limit:(uint64_t)limit
@@ -116,7 +62,7 @@ static BOOL NitroArchiveOpenCurrentEntry(unzFile zip, NSString *password, BOOL e
     return NO;
   }
 
-  if (unzLocateFile(zip, [entryPath cStringUsingEncoding:NSUTF8StringEncoding], NULL) != UNZ_OK) {
+  if (NitroArchiveLocateEntry(zip, entryIndex) != UNZ_OK) {
     unzClose(zip);
     NitroArchiveSetError(error, NitroArchiveZipEntryReaderErrorEntryNotFound, @"Entry not found in ZIP archive");
     return NO;

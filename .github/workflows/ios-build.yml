@@ -16,6 +16,7 @@ on:
       - '**/nitrogen/generated/ios/**'
       - 'cpp/**'
       - 'ios/**'
+      - 'rust/**'
       - '**/Podfile.lock'
       - '**/bun.lock'
       - '**/*.podspec'
@@ -31,6 +32,7 @@ on:
       - '**/nitrogen/generated/ios/**'
       - 'cpp/**'
       - 'ios/**'
+      - 'rust/**'
       - '**/Podfile.lock'
       - '**/bun.lock'
       - '**/*.podspec'
@@ -60,12 +62,44 @@ jobs:
       - name: Install dependencies (bun)
         run: bun install
 
+      - name: Install example dependencies (bun)
+        working-directory: example
+        run: bun install
+
+      - name: Generate Nitro bindings
+        run: bun run codegen
+
+      - name: Build Rust XCFramework
+        env:
+          RUSTUP_TOOLCHAIN: 1.100.0
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component llvm-tools \
+            --target aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios,aarch64-apple-tvos,aarch64-apple-tvos-sim
+          bash rust/build-ios.sh
+
+      - name: Check the Swift and Rust archive bridge
+        env:
+          RUSTUP_TOOLCHAIN: 1.100.0
+        run: |
+          cargo build --locked --release --lib --manifest-path rust/Cargo.toml
+          swiftc -import-objc-header rust/include/nitro_archive_core.h \
+            ios/Domain/{ArchiveError,ProgressSnapshot}.swift \
+            ios/Application/Ports/Archive{Engine,Input,Output}.swift \
+            ios/Application/OpenArchiveUseCase.swift \
+            ios/Infrastructure/Memory/BufferArchiveInput.swift \
+            ios/Infrastructure/Storage/LocalFileInput.swift \
+            ios/Infrastructure/Zip/RustZipArchive.swift \
+            tests/native/RustZipInspectionChecks.swift \
+            rust/target/release/libnitro_archive_core.a \
+            -framework Security -o "$RUNNER_TEMP/rust-zip-checks"
+          "$RUNNER_TEMP/rust-zip-checks"
+
       - name: Setup Ruby (bundle)
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.2'
           bundler-cache: true
-          working-directory: example/ios
+          working-directory: example
 
       - name: Install xcpretty
         run: gem install xcpretty
@@ -82,18 +116,19 @@ jobs:
 
       - name: Install Pods
         working-directory: example/ios
-        run: pod install
+        run: bundle exec pod install
 
       - name: Build App
         working-directory: example/ios
         run: |
-          set -o pipefail && xcodebuild \
-            CC=clang CPLUSPLUS=clang++ LD=clang LDPLUSPLUS=clang++ \
-            -derivedDataPath build -UseModernBuildSystem=YES \
-            -workspace NitroArchiveExample.xcworkspace \
-            -scheme NitroArchiveExample \
-            -sdk iphonesimulator \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
-            build \
-            CODE_SIGNING_ALLOWED=NO | xcpretty
+          set -o pipefail
+          for configuration in Debug Release; do
+            xcodebuild \
+              -derivedDataPath build \
+              -workspace NitroArchiveExample.xcworkspace \
+              -scheme NitroArchiveExample \
+              -sdk iphonesimulator \
+              -configuration "$configuration" \
+              -destination 'generic/platform=iOS Simulator' \
+              CODE_SIGNING_ALLOWED=NO build | xcpretty
+          done

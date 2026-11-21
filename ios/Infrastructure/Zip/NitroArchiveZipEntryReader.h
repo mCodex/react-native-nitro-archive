@@ -6,14 +6,8 @@ extern NSErrorDomain const NitroArchiveZipEntryReaderErrorDomain;
 
 @interface NitroArchiveZipEntryReader : NSObject
 
-+ (nullable NSData *)readEntryAtPath:(NSString *)archivePath
-                            entryPath:(NSString *)entryPath
-                             password:(nullable NSString *)password
-                                limit:(uint64_t)limit
-                                error:(NSError **)error;
-
 + (BOOL)extractEntryAtPath:(NSString *)archivePath
-                 entryPath:(NSString *)entryPath
+                entryIndex:(NSUInteger)entryIndex
             destinationPath:(NSString *)destinationPath
                   password:(nullable NSString *)password
                      limit:(uint64_t)limit

@@ -1,8 +1,7 @@
 import Foundation
 
 protocol ArchiveEngine: AnyObject {
-  func inspect(input: ArchiveInput) async throws -> ArchiveInspection
-  func inspect(data: Data) throws -> ArchiveInspection
+  func inspect(at url: URL) throws -> ArchiveInspection
   func readEntry(session: ArchiveEngineSession, path: String, limit: UInt64, password: String?) async throws -> Data
   func extractEntry(session: ArchiveEngineSession, path: String, to destination: URL, limit: UInt64, password: String?) async throws -> UInt64
   func createArchive(plan: CreationPlan, output: ArchiveOutput, onProgress: @escaping (ProgressSnapshot) -> Void) async throws -> CreationResult

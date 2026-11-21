@@ -8,36 +8,36 @@ final class OpenArchiveUseCase {
   }
 
   func execute(input: ArchiveInput) async throws -> (inspection: ArchiveInspection, session: ArchiveEngineSession) {
-    let archiveData = try await input.openForRandomAccess()
-    let inspection = try engine.inspect(data: archiveData)
-    let session = try ArchiveInMemorySession(entries: inspection.entries, archiveData: archiveData)
-    return (inspection, session)
+    let fileManager = FileManager.default
+    let tempDir = fileManager.temporaryDirectory
+      .appendingPathComponent("nitro-session-\(UUID().uuidString)", isDirectory: true)
+    let archiveURL = tempDir.appendingPathComponent("archive.zip")
+
+    try fileManager.createDirectory(
+      at: tempDir, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700]
+    )
+
+    do {
+      try input.stage(at: archiveURL)
+      let inspection = try engine.inspect(at: archiveURL)
+      let session = StagedArchiveSession(entries: inspection.entries, archiveURL: archiveURL)
+      return (inspection, session)
+    } catch {
+      try? fileManager.removeItem(at: tempDir)
+      throw error
+    }
   }
 }
 
-final class ArchiveInMemorySession: ArchiveEngineSession {
+private final class StagedArchiveSession: ArchiveEngineSession {
   private let entriesByPath: [String: EntryDescriptor]
   let entries: [EntryDescriptor]
-  let archiveData: Data?
-  let archiveURL: URL?
-  private let tempDir: URL?
+  let archiveURL: URL
 
-  init(entries: [EntryDescriptor], archiveData: Data?) throws {
+  init(entries: [EntryDescriptor], archiveURL: URL) {
     self.entries = entries
-    self.archiveData = archiveData
-    if let archiveData {
-      let tempDir = FileManager.default.temporaryDirectory
-        .appendingPathComponent(UUID().uuidString)
-        .appendingPathComponent("session")
-      try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-      let archiveURL = tempDir.appendingPathComponent("archive.zip")
-      try archiveData.write(to: archiveURL)
-      self.tempDir = tempDir
-      self.archiveURL = archiveURL
-    } else {
-      self.tempDir = nil
-      self.archiveURL = nil
-    }
+    self.archiveURL = archiveURL
+
     var map: [String: EntryDescriptor] = [:]
     for entry in entries {
       map[entry.path] = entry
@@ -50,8 +50,6 @@ final class ArchiveInMemorySession: ArchiveEngineSession {
   }
 
   deinit {
-    if let tempDir {
-      try? FileManager.default.removeItem(at: tempDir)
-    }
+    try? FileManager.default.removeItem(at: archiveURL.deletingLastPathComponent())
   }
 }
