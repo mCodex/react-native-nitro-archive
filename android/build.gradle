@@ -34,6 +34,7 @@ android {
   compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
 
   defaultConfig {
+    consumerProguardFiles "consumer-rules.pro"
     minSdkVersion getExtOrIntegerDefault("minSdkVersion")
     targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
     buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
@@ -126,7 +127,6 @@ dependencies {
 
   // Add a dependency on NitroModules
   implementation project(":react-native-nitro-modules")
-  implementation "net.lingala.zip4j:zip4j:2.11.6"
 }
 
 if (isNewArchitectureEnabled()) {

@@ -4,141 +4,114 @@ import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import android.system.StructStat
-import dev.modex.nitroarchive.application.ports.DirectoryOutput
 import dev.modex.nitroarchive.domain.ArchiveDomainError
 import dev.modex.nitroarchive.domain.ArchivePath
 import java.io.File
+import dev.modex.nitroarchive.infrastructure.zip.RustZipArchive
 
-class SafeDirectoryOutput(baseDir: File) : DirectoryOutput {
-    // shortcut: engines reopen paths; descriptor-relative writes are needed to resist concurrent destination replacement.
-    private data class CreatedPath(val file: File, val device: Long, val inode: Long)
+internal class SafeDirectoryOutput(baseDir: File) {
+    private data class CreatedPath(val file: File, val identity: StructStat, val backup: String? = null)
 
-    private val baseDir = baseDir.absoluteFile.normalize().let { directory ->
-        directory.parentFile?.let { File(it.canonicalFile, directory.name) } ?: directory
-    }
+    private val baseDir = rootedDestination(baseDir)
     private val createdPaths = mutableListOf<CreatedPath>()
 
-    override suspend fun prepareDirectory(at: String) {
-        prepareParents(pathComponents(at))
+    fun prepareDirectory(path: String) {
+        withDirectory(destination(path), create = true, onCreated = ::recordDirectory) {}
     }
 
-    override suspend fun createFile(at: String): File {
-        val components = pathComponents(at)
-        prepareParents(components.dropLast(1))
-        val file = components.fold(baseDir) { parent, component -> File(parent, component) }
+    fun publish(path: String, source: File, overwrite: String): Boolean {
+        val target = destination(path)
+        return withDirectory(target.parentFile!!, create = true, onCreated = ::recordDirectory) { directory ->
+            var name = target.name
+            var existing = fileStatus(File(directory, name))
 
-        fileStatus(file)?.let { status ->
-            rejectSymlink(status, file)
-            throw ArchiveDomainError.DestinationExists(at)
-        }
-
-        try {
-            val descriptor = Os.open(file.path,
-                OsConstants.O_CREAT or OsConstants.O_EXCL or OsConstants.O_WRONLY or OsConstants.O_NOFOLLOW,
-                OsConstants.S_IRUSR or OsConstants.S_IWUSR)
-            val status = try {
-                Os.fstat(descriptor)
-            } finally {
-                Os.close(descriptor)
+            when (overwrite) {
+                "skip" -> if (existing != null) return@withDirectory false
+                "rename" -> {
+                    var suffix = 1
+                    while (existing != null) {
+                        if (suffix > 10_000) throw ArchiveDomainError.DestinationExists(path)
+                        val extension = target.extension
+                        name = if (extension.isEmpty()) "${target.name}-$suffix"
+                            else "${target.nameWithoutExtension}-$suffix.$extension"
+                        suffix++
+                        existing = fileStatus(File(directory, name))
+                    }
+                }
+                "replace" -> if (existing != null && !OsConstants.S_ISREG(existing.st_mode)) {
+                    throw ArchiveDomainError.DestinationExists(path)
+                }
+                else -> if (existing != null) throw ArchiveDomainError.DestinationExists(path)
             }
-            createdPaths.add(CreatedPath(file, status.st_dev, status.st_ino))
-        } catch (error: ErrnoException) {
-            throw ioError(file, error)
-        }
 
-        return file
-    }
-
-    override suspend fun commit() {
-        createdPaths.clear()
-    }
-
-    override suspend fun rollback() {
-        var firstFailure: Exception? = null
-        val remaining = mutableListOf<CreatedPath>()
-
-        for (created in createdPaths.asReversed()) {
+            val stage = stageVerifiedFile(directory, source)
+            var preserveStage = false
             try {
-                validateParents(created.file)
-                val status = fileStatus(created.file) ?: continue
-                if (status.st_dev != created.device || status.st_ino != created.inode) {
-                    throw ArchiveDomainError.InvalidState("Extraction output changed before cleanup")
+                val identity = fileStatus(stage) ?: throw ArchiveDomainError.IoError("Verified staging file disappeared")
+                val directoryFd = directory.name.toInt()
+                val replacing = overwrite == "replace" && existing != null
+                val result = RustZipArchive.rename(directoryFd, stage.name, name, exchange = replacing)
+                if (result == -OsConstants.EEXIST) throw ArchiveDomainError.DestinationExists(path)
+                if (result != 0) throw ErrnoException("publish verified archive file", -result)
+
+                if (replacing) {
+                    preserveStage = true
+                    val previous = fileStatus(stage)
+                    if (previous == null || previous.st_dev != existing!!.st_dev || previous.st_ino != existing.st_ino) {
+                        if (RustZipArchive.rename(directoryFd, stage.name, name, exchange = true) == 0) {
+                            preserveStage = false
+                        }
+                        throw ArchiveDomainError.InvalidState("Extraction destination changed before replacement")
+                    }
                 }
 
-                // Never recursively remove a directory: it may contain another operation's files.
-                Os.remove(created.file.path)
-            } catch (error: Exception) {
-                if (firstFailure == null) firstFailure = error
-                remaining.add(created)
+                createdPaths.add(CreatedPath(File(target.parentFile, name), identity, stage.name.takeIf { replacing }))
+                true
+            } finally {
+                if (!preserveStage) stage.delete()
             }
         }
-
-        createdPaths.clear()
-        createdPaths.addAll(remaining.asReversed())
-        firstFailure?.let { throw it }
     }
 
-    private fun pathComponents(path: String): List<String> {
-        if (path.contains('\\')) throw ArchiveDomainError.PathTraversal(path)
+    fun commit() {
+        for (created in createdPaths) {
+            val backup = created.backup ?: continue
+            withDirectory(created.file.parentFile!!, create = false) { File(it, backup).delete() }
+        }
+        createdPaths.clear()
+    }
 
-        return try {
+    fun rollback() {
+        var failure: Exception? = null
+        for (created in createdPaths.asReversed()) {
+            try {
+                withDirectory(created.file.parentFile!!, create = false) { directory ->
+                    val leaf = File(directory, created.file.name)
+                    val actual = fileStatus(leaf) ?: return@withDirectory
+                    if (actual.st_dev != created.identity.st_dev || actual.st_ino != created.identity.st_ino) {
+                        throw ArchiveDomainError.InvalidState("Extraction output changed before cleanup")
+                    }
+                    if (created.backup == null) Os.remove(leaf.path)
+                    else Os.rename(File(directory, created.backup).path, leaf.path)
+                }
+            } catch (error: Exception) {
+                if (failure == null) failure = error
+            }
+        }
+        createdPaths.clear()
+        failure?.let { throw it }
+    }
+
+    private fun destination(path: String): File {
+        val components = try {
             ArchivePath.fromRaw(path).components
-        } catch (error: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             throw ArchiveDomainError.PathTraversal(path)
         }
+        return components.fold(baseDir) { parent, component -> File(parent, component) }
     }
 
-    private fun prepareParents(components: List<String>) {
-        ensureDirectory(baseDir)
-        var directory = baseDir
-
-        for (component in components) {
-            directory = File(directory, component)
-            ensureDirectory(directory)
-        }
+    private fun recordDirectory(directory: File, status: StructStat) {
+        createdPaths.add(CreatedPath(directory, status))
     }
-
-    private fun ensureDirectory(directory: File) {
-        fileStatus(directory)?.let { status ->
-            rejectSymlink(status, directory)
-            if (!OsConstants.S_ISDIR(status.st_mode)) throw ArchiveDomainError.DestinationExists(directory.path)
-            return
-        }
-
-        directory.parentFile?.let { ensureDirectory(it) }
-            ?: throw ArchiveDomainError.IoError("Missing filesystem root")
-
-        try {
-            Os.mkdir(directory.path, OsConstants.S_IRWXU)
-        } catch (error: ErrnoException) {
-            if (error.errno == OsConstants.EEXIST) return ensureDirectory(directory)
-            throw ioError(directory, error)
-        }
-        val status = fileStatus(directory) ?: throw ArchiveDomainError.IoError("Created directory disappeared")
-        createdPaths.add(CreatedPath(directory, status.st_dev, status.st_ino))
-    }
-
-    private fun validateParents(file: File) {
-        if (!file.path.startsWith(baseDir.path + File.separator)) return
-        var parent = file.parentFile
-
-        while (parent != null && parent != baseDir.parentFile) {
-            val status = fileStatus(parent) ?: return
-            rejectSymlink(status, parent)
-            parent = parent.parentFile
-        }
-    }
-
-    private fun fileStatus(file: File): StructStat? = try {
-        Os.lstat(file.path)
-    } catch (error: ErrnoException) {
-        if (error.errno == OsConstants.ENOENT) null else throw ioError(file, error)
-    }
-
-    private fun rejectSymlink(status: StructStat, file: File) {
-        if (OsConstants.S_ISLNK(status.st_mode)) throw ArchiveDomainError.UnsafeSymlink(file.path)
-    }
-
-    private fun ioError(file: File, error: ErrnoException) =
-        ArchiveDomainError.IoError("Filesystem operation failed for ${file.name}: errno ${error.errno}")
 }

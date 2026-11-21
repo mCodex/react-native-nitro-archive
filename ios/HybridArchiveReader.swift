@@ -61,17 +61,17 @@ final class HybridArchiveReader: HybridNativeArchiveReaderSpec {
     }
   }
 
-  func readEntry(path: String, maxBytes: Double, password: String?, verifyChecksum: Bool?) throws -> Promise<ArrayBuffer> {
+  func readEntry(path: String, maxBytes: Double, password: String?, verifyChecksum: Bool?) throws -> Promise<NativeEntryReadOutcome> {
     Promise.async {
-      let data = try await self.engine.readEntry(
-        session: self.session,
-        path: path,
-        limit: try parseNativeByteCount(maxBytes, default: 0),
-        password: password
-      )
-
-      let buffer = try ArrayBuffer.copy(data: data)
-      return buffer
+      do {
+        let data = try await self.engine.readEntry(
+          session: self.session, path: path,
+          limit: try parseNativeByteCount(maxBytes, default: 0), password: password
+        )
+        return NativeEntryReadOutcome(data: try ArrayBuffer.copy(data: data), error: nil)
+      } catch let error as ArchiveDomainError {
+        return NativeEntryReadOutcome(data: nil, error: nativeArchiveFailure(error))
+      }
     }
   }
 

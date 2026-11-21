@@ -5,6 +5,7 @@ protocol ArchiveInput {
 }
 
 protocol ArchiveEngineSession {
+  var inspection: ArchiveInspection { get }
   func entry(at path: String) -> EntryDescriptor?
   var entries: [EntryDescriptor] { get }
   var archiveURL: URL { get }

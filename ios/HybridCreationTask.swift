@@ -4,127 +4,119 @@ import NitroModules
 final class HybridCreationTask: HybridNativeCreationTaskSpec {
   private let stateMachine = TaskStateMachine()
   private let operationId: String
-  private let request: NativeCreationRequest
-  private let useCase: CreateArchiveUseCase
-  // ponytail: copy buffers on JS thread before background hop (JSArrayBuffer thread check)
-  private let copiedData: [Data?]
+  private let progressReporter: NativeTaskProgress
+  private let engine: ArchiveEngine
+  private let prepared: Result<PreparedCreation, Error>
 
-  private var progressCallback: ((NativeProgress) -> Void)?
-
-  private var cachedProgress: NativeProgress
-
-  var state: String {
-    stateMachine.state.rawValue
-  }
-
-  var progress: NativeProgress {
-    cachedProgress
-  }
+  var state: String { stateMachine.state.rawValue }
+  var progress: NativeProgress { progressReporter.snapshot }
 
   init(engine: ArchiveEngine, request: NativeCreationRequest) {
-    self.operationId = UUID().uuidString
-    self.request = request
-    self.useCase = CreateArchiveUseCase(engine: engine)
-    // ponytail: copy ArrayBuffer data while still on JS thread
-    self.copiedData = request.entries.map { entry in
-      entry.data.map { Data(bytes: $0.data, count: $0.size) }
-    }
-    self.cachedProgress = NativeProgress(
-      operationId: "",
-      phase: "preparing",
-      processedBytes: 0,
-      totalBytes: nil,
-      processedEntries: 0,
-      totalEntries: nil,
-      currentEntry: nil,
-      bytesPerSecond: nil,
-      estimatedSecondsRemaining: nil,
-      percentage: nil
-    )
+    let id = UUID().uuidString
+    operationId = id
+    progressReporter = NativeTaskProgress(operationId: id, intervalMs: request.progressIntervalMs)
+    self.engine = engine
+    prepared = Result { try Self.prepare(request) }
     super.init()
+  }
+
+  private static func prepare(_ request: NativeCreationRequest) throws -> PreparedCreation {
+    let destinationURL: URL
+    let securityScope: String?
+    switch request.destinationKind {
+    case "file":
+      guard let path = request.destinationPath, path.hasPrefix("/"), !path.utf8.contains(0) else {
+        throw ArchiveDomainError.invalidArgument("Missing archive destination")
+      }
+      destinationURL = URL(fileURLWithPath: path)
+      securityScope = nil
+    case "uri":
+      guard let uri = request.destinationUri, let url = URL(string: uri), url.isFileURL else {
+        throw ArchiveDomainError.providerUnsupported
+      }
+      destinationURL = url
+      securityScope = request.destinationIosSecurityScope ?? "auto"
+    default:
+      throw ArchiveDomainError.providerUnsupported
+    }
+    let memoryLimit = min(try parseNativeByteCount(request.maxInMemoryBytes, default: 16 * 1024 * 1024), 512 * 1024 * 1024)
+    var bytes: UInt64 = 0
+
+    for entry in request.entries {
+      let (next, overflow) = bytes.addingReportingOverflow(UInt64(entry.data?.size ?? 0))
+      guard !overflow, next <= memoryLimit else { throw ArchiveDomainError.bufferLimitExceeded }
+      bytes = next
+    }
+
+    let entries = request.entries.map { entry in
+      EntryInput(
+        kind: entry.kind, sourcePath: entry.sourcePath, sourceUri: entry.sourceUri,
+        iosSecurityScope: entry.iosSecurityScope,
+        archivePath: entry.archivePath, data: entry.data.map { Data(bytes: $0.data, count: $0.size) },
+        recursive: entry.recursive, includeHidden: entry.includeHidden, followSymlinks: entry.followSymlinks,
+        include: entry.include, exclude: entry.exclude,
+        compressionMethod: entry.compressionMethod, modifiedAt: entry.modifiedAt
+      )
+    }
+    let compressionLevel: Int?
+    if let level = request.compressionLevel {
+      guard let converted = Int(exactly: level), (0...9).contains(converted) else {
+        throw ArchiveDomainError.invalidArgument("Invalid compression level")
+      }
+      compressionLevel = converted
+    } else {
+      compressionLevel = nil
+    }
+
+    let plan = CreationPlan(
+      format: request.format ?? "zip", entries: entries,
+      compressionProfile: request.compressionProfile, compressionLevel: compressionLevel,
+      storeAlreadyCompressed: request.storeAlreadyCompressed ?? true,
+      encryptionMethod: request.encryptionMethod, encryptionPassword: request.encryptionPassword,
+      includeEmptyDirectories: request.includeEmptyDirectories ?? true,
+      preserveTimestamps: request.preserveTimestamps ?? true
+    )
+    return PreparedCreation(
+      plan: plan, destination: destinationURL, securityScope: securityScope,
+      replaceExisting: request.existingDestination == "replace"
+    )
   }
 
   func start() throws -> Promise<NativeCreationResult> {
     Promise.async {
-      try self.stateMachine.start()
-      let startTime = CFAbsoluteTimeGetCurrent()
+      do {
+        try self.stateMachine.start()
+      } catch let error as ArchiveDomainError {
+        return self.failure(error)
+      }
+      let start = ProcessInfo.processInfo.systemUptime
 
       do {
-        self.emitProgress(phase: "preparing")
-
-        guard self.request.destinationKind == "file", let destinationPath = self.request.destinationPath else {
-          throw ArchiveDomainError.providerUnsupported
-        }
-
-        if self.request.existingDestination == "error",
-           FileManager.default.fileExists(atPath: destinationPath) {
-          throw ArchiveDomainError.destinationExists(destinationPath)
-        }
-
-        let entryInputs = self.request.entries.enumerated().map { idx, nativeEntry -> EntryInput in
-          EntryInput(
-            kind: nativeEntry.kind,
-            sourcePath: nativeEntry.sourcePath,
-            archivePath: nativeEntry.archivePath,
-            data: self.copiedData[idx],
-            recursive: nativeEntry.recursive,
-            includeHidden: nativeEntry.includeHidden,
-            followSymlinks: nativeEntry.followSymlinks,
-            compressionMethod: nativeEntry.compressionMethod,
-            modifiedAt: nativeEntry.modifiedAt
-          )
-        }
-
-        let plan = CreationPlan(
-          entries: entryInputs,
-          compressionProfile: self.request.compressionProfile,
-          compressionLevel: self.request.compressionLevel.map(Int.init),
-          storeAlreadyCompressed: self.request.storeAlreadyCompressed ?? true,
-          encryptionMethod: self.request.encryptionMethod,
-          encryptionPassword: self.request.encryptionPassword
-        )
-
-        let output = LocalFileOutput(path: destinationPath)
-
-        self.emitProgress(phase: "compressing")
-
-        let result = try await self.useCase.execute(
-          plan: plan,
-          output: output,
-          onProgress: { snapshot in
-            self.emitProgress(
-              phase: "compressing",
-              processedBytes: snapshot.processedBytes,
-              processedEntries: snapshot.processedEntries,
-              currentEntry: snapshot.currentEntry,
-              totalEntries: snapshot.totalEntries
-            )
+        try self.stateMachine.checkCancellation()
+        let prepared = try self.prepared.get()
+        let result: CreationResult
+        if let scope = prepared.securityScope {
+          result = try withCoordinatedArchiveURL(prepared.destination, securityScope: scope, mode: .write) {
+            try self.writeArchive(prepared, to: $0)
           }
-        )
-
-        self.emitProgress(phase: "finalizing")
+        } else {
+          result = try self.writeArchive(prepared, to: prepared.destination)
+        }
         try self.stateMachine.succeed()
-
-        let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-
-        self.emitProgress(
-          phase: "finalizing",
-          processedBytes: result.inputBytes,
-          processedEntries: result.entryCount,
-          currentEntry: nil,
-          totalEntries: result.entryCount,
-          percentage: 100
+        self.progressReporter.emit(
+          phase: "finalizing", bytes: result.inputBytes, entries: UInt64(result.entryCount),
+          totalEntries: result.entryCount, complete: true
         )
 
         return NativeCreationResult(
-          operationId: self.operationId,
-          entryCount: Double(result.entryCount),
-          inputBytes: Double(result.inputBytes),
-          outputBytes: Double(result.outputBytes),
-          durationMs: duration,
-          atomicWriteApplied: false,
-          warnings: []
+          operationId: self.operationId, entryCount: Double(result.entryCount),
+          inputBytes: Double(result.inputBytes), outputBytes: Double(result.outputBytes),
+          durationMs: (ProcessInfo.processInfo.systemUptime - start) * 1000,
+          atomicWriteApplied: true, warnings: [], error: nil
         )
+      } catch let error as ArchiveDomainError {
+        self.stateMachine.fail(cancelled: error == .operationCancelled)
+        return self.failure(error)
       } catch {
         self.stateMachine.fail()
         throw error
@@ -132,49 +124,42 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
     }
   }
 
-  func cancel() throws -> Bool {
-    stateMachine.cancel()
+  private func failure(_ error: ArchiveDomainError) -> NativeCreationResult {
+    NativeCreationResult(
+      operationId: operationId, entryCount: 0, inputBytes: 0, outputBytes: 0,
+      durationMs: 0, atomicWriteApplied: false, warnings: [], error: nativeArchiveFailure(error, operationId: operationId)
+    )
   }
+
+  private func writeArchive(_ prepared: PreparedCreation, to url: URL) throws -> CreationResult {
+    let destination = try LocalArchiveDestination(path: url.path, replaceExisting: prepared.replaceExisting)
+    progressReporter.emit(phase: "compressing")
+    let result = try engine.createArchive(plan: prepared.plan, outputFd: destination.file.fileDescriptor) { bytes, entries in
+      guard (try? self.stateMachine.checkCancellation()) != nil else { return false }
+      self.progressReporter.emit(phase: "compressing", bytes: bytes, entries: entries)
+      return true
+    }
+    guard result.inputBytes <= 9_007_199_254_740_991, result.outputBytes <= 9_007_199_254_740_991 else {
+      throw ArchiveDomainError.archiveTooLarge
+    }
+
+    try stateMachine.beginCommit()
+    try destination.commit()
+    return result
+  }
+
+  func cancel() throws -> Bool { stateMachine.cancel() }
 
   func onProgress(callback: @escaping (NativeProgress) -> Void) throws -> () -> Void {
-    progressCallback = callback
-    return { [weak self] in
-      self?.progressCallback = nil
-    }
+    progressReporter.setCallback(callback)
+    return { [weak self] in self?.progressReporter.setCallback(nil) }
   }
+}
 
-  private func emitProgress(
-    phase: String,
-    processedBytes: UInt64 = 0,
-    processedEntries: Int = 0,
-    currentEntry: String? = nil,
-    totalEntries: Int? = nil,
-    percentage: Double? = nil
-  ) {
-    let total = totalEntries.map(Double.init)
-    let pct: Double?
-    if let p = percentage {
-      pct = p
-    } else if let t = total, t > 0 {
-      pct = min(Double(processedEntries) / t * 100, 100)
-    } else {
-      pct = nil
-    }
 
-    let snapshot = NativeProgress(
-      operationId: operationId,
-      phase: phase,
-      processedBytes: Double(processedBytes),
-      totalBytes: nil,
-      processedEntries: Double(processedEntries),
-      totalEntries: total,
-      currentEntry: currentEntry,
-      bytesPerSecond: nil,
-      estimatedSecondsRemaining: nil,
-      percentage: pct
-    )
-
-    cachedProgress = snapshot
-    progressCallback?(snapshot)
-  }
+private struct PreparedCreation {
+  let plan: CreationPlan
+  let destination: URL
+  let securityScope: String?
+  let replaceExisting: Bool
 }

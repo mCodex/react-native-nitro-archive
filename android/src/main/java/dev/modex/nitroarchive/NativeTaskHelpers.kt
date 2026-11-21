@@ -1,6 +1,14 @@
 package dev.modex.nitroarchive
 
+import android.system.ErrnoException
+import com.margelo.nitro.archive.ArchiveErrorCode
+import com.margelo.nitro.archive.NativeArchiveFailure
+import com.margelo.nitro.archive.NativeExtractionLimits
 import com.margelo.nitro.archive.NativeProgress
+import dev.modex.nitroarchive.application.ports.ArchiveInspection
+import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.domain.ExtractionLimits
+import java.io.IOException
 
 /**
  * Creates an idle [NativeProgress] snapshot for a new task.
@@ -56,15 +64,39 @@ internal fun emitProgress(
     return snapshot
 }
 
-/**
- * Returns `true` when [bytes] starts with the ZIP local file header signature
- * (`PK\x03\x04`).
- */
-internal fun isZipSignature(bytes: ByteArray): Boolean = bytes.size >= 4
-    && bytes[0] == 0x50.toByte()
-    && bytes[1] == 0x4B.toByte()
-    && bytes[2] == 0x03.toByte()
-    && bytes[3] == 0x04.toByte()
+internal fun archiveFailure(
+    error: ArchiveDomainError,
+    operationId: String? = null,
+    source: String? = null
+): NativeArchiveFailure {
+    val code = ArchiveErrorCode.entries.find { it.name == error.code } ?: ArchiveErrorCode.E_INTERNAL
+    return NativeArchiveFailure(code, error.message ?: error.code, operationId, null, source, null, null)
+}
+
+internal fun archiveDomainFailure(error: Exception): ArchiveDomainError? = when (error) {
+    is ArchiveDomainError -> error
+    is SecurityException -> ArchiveDomainError.PermissionDenied("Archive source or destination is unavailable")
+    is IOException, is ErrnoException -> ArchiveDomainError.IoError("Cannot access archive source or destination")
+    else -> null
+}
+
+internal fun archiveLimits(limits: NativeExtractionLimits?): ExtractionLimits = ExtractionLimits(
+    maxEntries = limits?.maxEntries?.toInt() ?: 10_000,
+    maxTotalUncompressedBytes = limits?.maxTotalUncompressedBytes?.toLong() ?: 2_147_483_648L,
+    maxEntryUncompressedBytes = limits?.maxEntryUncompressedBytes?.toLong() ?: 536_870_912L,
+    maxCompressionRatio = limits?.maxCompressionRatio?.toInt() ?: 1000,
+    maxPathDepth = limits?.maxPathDepth?.toInt() ?: 32,
+    maxPathBytes = limits?.maxPathBytes?.toInt() ?: 1024
+)
+
+internal fun checkCompressionRatio(inspection: ArchiveInspection, limits: ExtractionLimits) {
+    if (inspection.format != "tar.gz") return
+    val compressed = inspection.compressedSize ?: return
+    val expanded = inspection.totalUncompressedSize ?: return
+    if (compressed > 0 && expanded.toDouble() / compressed > limits.maxCompressionRatio) {
+        throw ArchiveDomainError.ExtractionLimitExceeded("maxCompressionRatio", "${expanded / compressed}")
+    }
+}
 
 /**
  * Maps a Nitro access-mode string to the domain

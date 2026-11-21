@@ -83,13 +83,14 @@ jobs:
         run: |
           cargo build --locked --release --lib --manifest-path rust/Cargo.toml
           swiftc -import-objc-header rust/include/nitro_archive_core.h \
-            ios/Domain/{ArchiveError,ProgressSnapshot}.swift \
-            ios/Application/Ports/Archive{Engine,Input,Output}.swift \
-            ios/Application/OpenArchiveUseCase.swift \
+            ios/Domain/{ArchiveError,ArchivePath,DuplicatePathPolicy,ExtractionLimits,PathPolicy,TaskStateMachine}.swift \
+            ios/Application/Ports/{ArchiveAccessInspecting,ArchiveEngine,ArchiveInput,DirectoryOutput}.swift \
+            ios/Application/{OpenArchiveUseCase,ExtractArchiveUseCase,ExtractionPlanner}.swift \
+            ios/Infrastructure/{RustArchive,RustArchiveEngine}.swift \
             ios/Infrastructure/Memory/BufferArchiveInput.swift \
-            ios/Infrastructure/Storage/LocalFileInput.swift \
-            ios/Infrastructure/Zip/RustZipArchive.swift \
-            tests/native/RustZipInspectionChecks.swift \
+            ios/Infrastructure/Storage/{ArchiveWorkspace,LocalArchiveDestination,LocalFileInput,SafeDirectoryOutput}.swift \
+            ios/Platform/CoordinatedArchiveAccess.swift \
+            tests/native/RustArchiveChecks.swift \
             rust/target/release/libnitro_archive_core.a \
             -framework Security -o "$RUNNER_TEMP/rust-zip-checks"
           "$RUNNER_TEMP/rust-zip-checks"

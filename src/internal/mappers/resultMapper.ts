@@ -12,6 +12,7 @@ import type {
 import type { CreationResult } from "../../types/creation";
 import type { ArchiveWarning, ExtractionResult } from "../../types/extraction";
 import type { ArchiveIssue, ValidationResult } from "../../types/validation";
+import { throwNativeFailure } from "../outcome";
 
 function mapWarning(native: NativeWarning): ArchiveWarning {
 	return {
@@ -35,6 +36,7 @@ export function mapExtractionResult(
 	native: NativeExtractionResult,
 	destination: ExtractionDestination,
 ): ExtractionResult {
+	throwNativeFailure(native.error);
 	return {
 		operationId: native.operationId,
 		destination,
@@ -51,6 +53,7 @@ export function mapCreationResult(
 	native: NativeCreationResult,
 	output: ArchiveFileDestination,
 ): CreationResult {
+	throwNativeFailure(native.error);
 	return {
 		operationId: native.operationId,
 		output,
@@ -66,6 +69,7 @@ export function mapCreationResult(
 export function mapValidationResult(
 	native: NativeValidationResult,
 ): ValidationResult {
+	throwNativeFailure(native.error);
 	return {
 		operationId: native.operationId,
 		valid: native.valid,

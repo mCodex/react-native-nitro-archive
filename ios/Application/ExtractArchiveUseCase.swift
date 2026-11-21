@@ -19,55 +19,59 @@ final class ExtractArchiveUseCase {
     destination: DirectoryOutput,
     limits: ExtractionLimits,
     password: String?,
-    onProgress: @escaping (String, UInt64, UInt64) -> Void
+    checkCancellation: @escaping () throws -> Void,
+    onProgress: @escaping (String, UInt64, Int) -> Void
   ) async throws -> ExtractionResult {
-    var extracted = 0
-    var skipped = 0
-    var writtenBytes: UInt64 = 0
+    let workspace = try ArchiveWorkspace()
+    defer { withExtendedLifetime(workspace) {} }
 
+    var extracted = 0
+    var writtenBytes: UInt64 = 0
     for item in plan {
-      try Task.checkCancellation()
+      try checkCancellation()
 
       let path = item.outputPath.normalized
       let entry = item.entry
-
-      if entry.kind == "directory" {
+      switch entry.kind {
+      case "directory":
         try await destination.prepareDirectory(at: path)
-        extracted += 1
-        onProgress(path, 0, 0)
-        continue
+      case "symlink", "hardlink":
+        throw ArchiveDomainError.unsafeSymlink(path)
+      case "file":
+        let output = workspace.directory.appendingPathComponent(UUID().uuidString)
+        let file = try workspace.createFile(at: output)
+        defer {
+          try? file.close()
+          try? FileManager.default.removeItem(at: output)
+        }
+
+        let completedBytes = writtenBytes
+        let completedEntries = extracted
+        let remainingBytes = limits.maxTotalUncompressedBytes - completedBytes
+        let limit = min(limits.maxEntryUncompressedBytes, remainingBytes)
+        let bytes = try engine.extractEntry(
+          session: session, path: entry.path, outputFd: file.fileDescriptor,
+          limit: limit, password: password
+        ) { bytes, _ in
+          guard (try? checkCancellation()) != nil else { return false }
+          let progress = min(bytes, limit) + completedBytes
+          onProgress(path, progress, completedEntries)
+          return true
+        }
+        guard bytes <= limit, bytes == entry.uncompressedSize else {
+          throw ArchiveDomainError.invalidArchive("Extracted size does not match indexed metadata")
+        }
+        try checkCancellation()
+        try await destination.installFile(from: file, at: path, checkCancellation: checkCancellation)
+        writtenBytes += bytes
+      default:
+        throw ArchiveDomainError.specialFile(path)
       }
 
-      guard entry.kind == "file" else {
-        skipped += 1
-        continue
-      }
-
-      guard entry.uncompressedSize <= limits.maxEntryUncompressedBytes else {
-        throw ArchiveDomainError.extractionLimitExceeded(
-          limit: "maxEntryUncompressedBytes",
-          value: "\(entry.uncompressedSize)"
-        )
-      }
-
-      let fileURL = try await destination.createFile(at: path)
-      let bytesWritten = try await engine.extractEntry(
-        session: session,
-        path: entry.path,
-        to: fileURL,
-        limit: limits.maxEntryUncompressedBytes,
-        password: password
-      )
-
-      writtenBytes += bytesWritten
       extracted += 1
-      onProgress(path, bytesWritten, writtenBytes)
+      onProgress(path, writtenBytes, extracted)
     }
 
-    return ExtractionResult(
-      extractedEntries: extracted,
-      skippedEntries: skipped,
-      writtenBytes: writtenBytes
-    )
+    return ExtractionResult(extractedEntries: extracted, skippedEntries: 0, writtenBytes: writtenBytes)
   }
 }

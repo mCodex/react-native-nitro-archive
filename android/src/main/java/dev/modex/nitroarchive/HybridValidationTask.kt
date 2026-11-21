@@ -3,7 +3,7 @@ package dev.modex.nitroarchive
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.Promise
 import dev.modex.nitroarchive.application.ExtractionPlanner
-import dev.modex.nitroarchive.domain.ExtractionLimits
+import dev.modex.nitroarchive.application.ports.ArchiveInspection
 import dev.modex.nitroarchive.application.ports.ArchiveEngineSession
 import dev.modex.nitroarchive.domain.ArchiveDomainError
 import dev.modex.nitroarchive.domain.TaskState
@@ -13,6 +13,7 @@ import java.util.UUID
 
 class HybridValidationTask(
     private val session: ArchiveEngineSession,
+    private val inspection: ArchiveInspection,
     private val request: NativeValidationRequest
 ) : HybridNativeValidationTaskSpec() {
 
@@ -31,15 +32,11 @@ class HybridValidationTask(
             latestProgress = emitProgress(operationId, phase = "validating", listeners = listeners)
 
             val entries = session.entries
-            val limits = ExtractionLimits(
-                maxEntries = request.limits?.maxEntries?.toInt() ?: 10000,
-                maxTotalUncompressedBytes = request.limits?.maxTotalUncompressedBytes?.toLong() ?: 2_147_483_648L,
-                maxEntryUncompressedBytes = request.limits?.maxEntryUncompressedBytes?.toLong() ?: 536_870_912L,
-                maxCompressionRatio = request.limits?.maxCompressionRatio?.toInt() ?: 1000,
-                maxPathDepth = request.limits?.maxPathDepth?.toInt() ?: 32,
-                maxPathBytes = request.limits?.maxPathBytes?.toInt() ?: 1024
-            )
-            ExtractionPlanner().plan(entries, null, null, limits)
+            val limits = archiveLimits(request.limits)
+            checkCompressionRatio(inspection, limits)
+            val checkedEntries = if (inspection.format == "tar.gz")
+                entries.map { it.copy(compressedSize = it.uncompressedSize) } else entries
+            ExtractionPlanner().plan(checkedEntries, null, null, limits)
             val issues = mutableListOf<NativeArchiveIssue>()
             var checkedUncompressed = 0L
             var encryptedCount = 0
@@ -137,6 +134,7 @@ class HybridValidationTask(
                 listeners = listeners
             )
 
+            stateMachine.beginCommit()
             stateMachine.succeed()
 
             NativeValidationResult(
@@ -146,17 +144,17 @@ class HybridValidationTask(
                 checkedUncompressedBytes = checkedUncompressed.toDouble(),
                 encryptedEntries = encryptedCount.toDouble(),
                 durationMs = (System.currentTimeMillis() - startTime).toDouble(),
-                issues = issues.toTypedArray()
+                issues = issues.toTypedArray(),
+                error = null
             )
-        } catch (e: ArchiveDomainError.OperationCancelled) {
-            stateMachine.markCancelled()
-            throw e
-        } catch (e: ArchiveDomainError) {
-            stateMachine.fail()
-            throw e
-        } catch (e: Exception) {
-            stateMachine.fail()
-            throw e
+        } catch (error: Exception) {
+            val domain = archiveDomainFailure(error)
+            if (domain is ArchiveDomainError.OperationCancelled) stateMachine.markCancelled() else stateMachine.fail()
+            if (domain == null) throw error
+            NativeValidationResult(
+                operationId, false, 0.0, 0.0, 0.0, (System.currentTimeMillis() - startTime).toDouble(),
+                emptyArray(), archiveFailure(domain, operationId)
+            )
         }
     }
 

@@ -5,7 +5,7 @@ import java.io.InputStream
 
 internal const val MAX_ARCHIVE_INPUT_BYTES = 512 * 1024 * 1024
 
-// shortcut: legacy payload readers retain the snapshot in memory, move to a seekable session with the Rust payload reader.
+// shortcut: Android retains a capped input snapshot, use seekable sessions for larger archives.
 internal fun InputStream.readArchiveBytes(initialBytes: Int = 64 * 1024): ByteArray {
     var data = ByteArray(initialBytes)
     var length = 0

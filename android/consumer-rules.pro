@@ -1,5 +1,13 @@
-# NitroArchive - keep Hybrid Objects
--keep class dev.modex.nitroarchive.** { *; }
+# Generated Nitro registration calls Hybrid Objects by name.
 -keep class com.margelo.nitro.archive.** { *; }
-# Keep Zip4j
--keep class net.lingala.zip4j.** { *; }
+
+# The JNI bridge finds these managed members by name.
+-keep class dev.modex.nitroarchive.infrastructure.zip.RustZipArchive$ReadResult {
+    <init>(byte[], java.lang.String);
+}
+-keep interface dev.modex.nitroarchive.infrastructure.zip.RustZipArchive$Progress {
+    boolean update(long, long);
+}
+-keep class * implements dev.modex.nitroarchive.infrastructure.zip.RustZipArchive$Progress {
+    boolean update(long, long);
+}

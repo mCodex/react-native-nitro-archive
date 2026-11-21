@@ -8,33 +8,32 @@ import dev.modex.nitroarchive.domain.ArchiveDomainError
 import dev.modex.nitroarchive.infrastructure.memory.BufferArchiveInput
 import dev.modex.nitroarchive.infrastructure.storage.LocalFileInput
 import dev.modex.nitroarchive.infrastructure.storage.MAX_ARCHIVE_INPUT_BYTES
+import dev.modex.nitroarchive.infrastructure.storage.copyBoundedTo
 import dev.modex.nitroarchive.infrastructure.storage.readArchiveBytes
+import dev.modex.nitroarchive.infrastructure.storage.withArchiveStage
 import dev.modex.nitroarchive.infrastructure.zip.RustZipArchive
-import dev.modex.nitroarchive.infrastructure.zip.Zip4jEngine
 import dev.modex.nitroarchive.platform.AndroidArchiveAccessInspector
 import java.io.File
-import java.io.RandomAccessFile
 
 open class HybridArchiveModule() : HybridArchiveModuleSpec() {
     private val context get() =
         com.margelo.nitro.NitroModules.applicationContext?.applicationContext
             ?: throw ArchiveDomainError.Internal("NitroModules not initialized")
-    private val engine = Zip4jEngine()
     private val openArchive = OpenArchiveUseCase(RustZipArchive::inspect)
     private val accessInspector by lazy { AndroidArchiveAccessInspector(context) }
 
     override fun getCapabilities(): NativeArchiveCapabilities {
         return NativeArchiveCapabilities(
             platform = NativePlatform.ANDROID,
-            readableFormats = arrayOf("zip"),
-            writableFormats = arrayOf("zip"),
+            readableFormats = arrayOf("zip", "tar", "tar.gz"),
+            writableFormats = arrayOf("zip", "tar", "tar.gz"),
             compressionMethods = arrayOf("store", "deflate"),
             encryptionMethods = arrayOf("none", "zip-crypto", "aes-256"),
             supportsFilePaths = true,
             supportsInputUris = true,
-            supportsOutputUris = false,
+            supportsOutputUris = true,
             supportsDirectoryUris = false,
-            supportsAtomicPathWrites = false,
+            supportsAtomicPathWrites = true,
             supportsSecurityScopedUrls = false,
             supportsZip64 = true
         )
@@ -75,63 +74,47 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
     }
 
     override fun detectFile(path: String): Promise<NativeDetectionOutcome> = Promise.async {
-        val file = File(path)
-        if (!file.exists() || file.length() < 4) {
-            return@async NativeDetectionOutcome(ok = true, format = null, confidence = 0.0, extensionMatches = null, error = null)
+        detectOutcome(path) {
+            val format = if (File(path).exists()) RustZipArchive.detect(path) else null
+            val matches = format?.let {
+                path.endsWith(".$it", ignoreCase = true) ||
+                    (it == "tar.gz" && path.endsWith(".tgz", ignoreCase = true))
+            }
+            NativeDetectionOutcome(true, format, if (format == null) 0.0 else 1.0, matches, null)
         }
-        val raf = RandomAccessFile(file, "r")
-        val signature = ByteArray(4)
-        raf.readFully(signature)
-        raf.close()
-        val isZip = isZipSignature(signature)
-        val extMatch = path.endsWith(".zip", ignoreCase = true)
-        NativeDetectionOutcome(
-            ok = true,
-            format = if (isZip) "zip" else null,
-            confidence = if (isZip) 1.0 else 0.0,
-            extensionMatches = extMatch,
-            error = null
-        )
     }
 
     override fun detectUri(uri: String): Promise<NativeDetectionOutcome> = Promise.async {
-        val androidUri = android.net.Uri.parse(uri)
-        if (androidUri.scheme == "file") {
-            detectFile(androidUri.path ?: uri).await()
-        } else {
-            try {
-                val inputStream = context.contentResolver.openInputStream(androidUri)
-                val signature = inputStream?.use { it.readNBytes(4) }
-                if (signature == null || signature.size < 4) {
-                    NativeDetectionOutcome(ok = true, format = null, confidence = 0.0, extensionMatches = null, error = null)
-                } else {
-                    val isZip = isZipSignature(signature)
-                    NativeDetectionOutcome(ok = true, format = if (isZip) "zip" else null, confidence = if (isZip) 1.0 else 0.0, extensionMatches = null, error = null)
-                }
-            } catch (e: Exception) {
-                NativeDetectionOutcome(ok = false, format = null, confidence = 0.0, extensionMatches = null, error = NativeArchiveFailure(ArchiveErrorCode.E_IO, e.message ?: "Failed to read URI", null, null, null, null, null))
+        val parsed = android.net.Uri.parse(uri)
+        if (parsed.scheme == "file") return@async detectFile(parsed.path ?: uri).await()
+        detectOutcome(uri) {
+            val format = withArchiveStage(context.cacheDir) { stage ->
+                val file = File(stage, "archive")
+                context.contentResolver.openInputStream(parsed)?.use { it.copyBoundedTo(file) { false } }
+                    ?: throw ArchiveDomainError.FileNotAvailable("Cannot open archive for detection")
+                RustZipArchive.detect(file.absolutePath)
             }
+            NativeDetectionOutcome(true, format, if (format == null) 0.0 else 1.0, null, null)
         }
     }
 
     override fun detectBuffer(data: ArrayBuffer): Promise<NativeDetectionOutcome> {
-        val bytes = ByteArray(minOf(data.size, 4))
-        data.getBuffer(false).get(bytes)
+        val bytes = if (data.size <= MAX_ARCHIVE_INPUT_BYTES) data.toByteArray() else null
         return Promise.async {
-        if (bytes.size < 4) {
-            return@async NativeDetectionOutcome(ok = true, format = null, confidence = 0.0, extensionMatches = null, error = null)
+            detectOutcome(null) {
+                val format = RustZipArchive.detect(bytes ?: throw ArchiveDomainError.ArchiveTooLarge())
+                NativeDetectionOutcome(true, format, if (format == null) 0.0 else 1.0, null, null)
+            }
         }
-        val isZip = isZipSignature(bytes)
-        NativeDetectionOutcome(
-            ok = true,
-            format = if (isZip) "zip" else null,
-            confidence = if (isZip) 1.0 else 0.0,
-            extensionMatches = null,
-            error = null
-        )
     }
 
-    }
+    private inline fun detectOutcome(source: String?, action: () -> NativeDetectionOutcome): NativeDetectionOutcome =
+        try {
+            action()
+        } catch (error: Exception) {
+            val failure = archiveDomainFailure(error) ?: throw error
+            NativeDetectionOutcome(false, null, 0.0, null, archiveFailure(failure, source = source))
+        }
 
     override fun openFile(path: String, options: NativePathOpenOptions): Promise<NativeOpenOutcome> = Promise.async {
         try {
@@ -140,7 +123,7 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
             val reader = HybridArchiveReader(
                 inspection = result.inspection,
                 session = result.session,
-                engine = engine
+                cacheDirectory = context.cacheDir
             )
             NativeOpenOutcome(ok = true, reader = reader, error = null)
         } catch (e: ArchiveDomainError) {
@@ -179,7 +162,7 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
             val reader = HybridArchiveReader(
                 inspection = result.inspection,
                 session = result.session,
-                engine = engine
+                cacheDirectory = context.cacheDir
             )
             NativeOpenOutcome(ok = true, reader = reader, error = null)
         } catch (e: ArchiveDomainError) {
@@ -205,7 +188,7 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
             val reader = HybridArchiveReader(
                 inspection = result.inspection,
                 session = result.session,
-                engine = engine
+                cacheDirectory = context.cacheDir
             )
             NativeOpenOutcome(ok = true, reader = reader, error = null)
         } catch (e: ArchiveDomainError) {
@@ -223,11 +206,8 @@ open class HybridArchiveModule() : HybridArchiveModuleSpec() {
 
     }
 
-    override fun create(request: NativeCreationRequest): HybridNativeCreationTaskSpec {
-        val ctx = com.margelo.nitro.NitroModules.applicationContext?.applicationContext
-            ?: throw ArchiveDomainError.Internal("NitroModules.applicationContext is null — create() called before React context was ready")
-        return HybridCreationTask(context = ctx, engine = engine, request = request)
-    }
+    override fun create(request: NativeCreationRequest): HybridNativeCreationTaskSpec =
+        HybridCreationTask(context = context, request = request)
 
     private fun mapCode(code: String): ArchiveErrorCode {
         return try {

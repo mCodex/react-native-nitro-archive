@@ -1,6 +1,7 @@
 import { ArchiveError } from "../errors";
 import type { NativeOpenOutcome } from "../specs/ArchiveModule.nitro";
 import type { NativeArchiveReader } from "../specs/NativeArchiveReader.nitro";
+import { throwNativeFailure } from "./outcome";
 
 export {
 	mapAccessReport,
@@ -27,15 +28,6 @@ export function openOutcomeOrThrow(
 	if (native.ok && native.reader) {
 		return native.reader;
 	}
-	throw new ArchiveError(
-		native.error?.code ?? "E_INTERNAL",
-		native.error?.message ?? "Failed to open archive",
-		{
-			operationId: native.error?.operationId,
-			entryPath: native.error?.entryPath,
-			source: native.error?.source,
-			destination: native.error?.destination,
-			nativeCode: native.error?.nativeCode,
-		},
-	);
+	throwNativeFailure(native.error);
+	throw new ArchiveError("E_INTERNAL", "Failed to open archive.");
 }

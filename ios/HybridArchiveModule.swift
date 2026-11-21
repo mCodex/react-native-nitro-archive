@@ -6,7 +6,7 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
   private let accessInspector: ArchiveAccessInspecting
 
   override init() {
-    self.engine = SSZipArchiveEngine()
+    self.engine = RustArchiveEngine()
     self.accessInspector = IOSArchiveAccessInspector()
     super.init()
   }
@@ -14,15 +14,15 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
   func getCapabilities() throws -> NativeArchiveCapabilities {
     NativeArchiveCapabilities(
       platform: .ios,
-      readableFormats: ["zip"],
-      writableFormats: ["zip"],
+      readableFormats: ["zip", "tar", "tar.gz"],
+      writableFormats: ["zip", "tar", "tar.gz"],
       compressionMethods: ["store", "deflate"],
       encryptionMethods: ["none", "zip-crypto", "aes-256"],
       supportsFilePaths: true,
       supportsInputUris: true,
-      supportsOutputUris: false,
+      supportsOutputUris: true,
       supportsDirectoryUris: false,
-      supportsAtomicPathWrites: false,
+      supportsAtomicPathWrites: true,
       supportsSecurityScopedUrls: true,
       supportsZip64: true
     )
@@ -70,40 +70,65 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
 
   func detectFile(path: String) throws -> Promise<NativeDetectionOutcome> {
     Promise.async {
-      guard let signature = try? Data(contentsOf: URL(fileURLWithPath: path), options: .alwaysMapped),
-            signature.count >= 4 else {
-        return NativeDetectionOutcome(ok: true, format: nil, confidence: 0, extensionMatches: nil, error: nil)
-      }
-      let isZip = signature[0] == 0x50 && signature[1] == 0x4B && signature[2] == 0x03 && signature[3] == 0x04
-      let extMatch = path.hasSuffix(".zip")
-      return NativeDetectionOutcome(
-        ok: true,
-        format: isZip ? "zip" : nil,
-        confidence: isZip ? 1.0 : 0,
-        extensionMatches: extMatch,
-        error: nil
-      )
+      self.detect(url: URL(fileURLWithPath: path))
     }
   }
 
   func detectUri(uri: String) throws -> Promise<NativeDetectionOutcome> {
     Promise.async {
-      guard let url = URL(string: uri) else {
-        return NativeDetectionOutcome(ok: false, format: nil, confidence: 0, extensionMatches: nil, error: NativeArchiveFailure(code: .eInvalidArgument, message: "Invalid URI", operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
+      guard let url = URL(string: uri), url.isFileURL else {
+        return self.detectionFailure(.invalidArgument("Not a file URL"))
       }
-      return try await self.detectFile(path: url.path).await()
+      do {
+        return try withCoordinatedArchiveURL(url, securityScope: nil, mode: .read) {
+          self.detect(url: $0)
+        }
+      } catch let error as ArchiveDomainError {
+        return self.detectionFailure(error)
+      } catch {
+        return self.detectionFailure(.ioError("Archive detection failed"))
+      }
     }
   }
 
   func detectBuffer(data: ArrayBuffer) throws -> Promise<NativeDetectionOutcome> {
-    let bytes = Data(bytes: data.data, count: min(data.size, 4))
-    return Promise.async {
-      guard bytes.count >= 4 else {
-        return NativeDetectionOutcome(ok: true, format: nil, confidence: 0, extensionMatches: nil, error: nil)
-      }
-      let isZip = bytes[0] == 0x50 && bytes[1] == 0x4B && bytes[2] == 0x03 && bytes[3] == 0x04
-      return NativeDetectionOutcome(ok: true, format: isZip ? "zip" : nil, confidence: isZip ? 1.0 : 0, extensionMatches: nil, error: nil)
+    guard data.size <= 512 * 1024 * 1024 else {
+      return Promise.async { self.detectionFailure(.archiveTooLarge) }
     }
+    let bytes = Data(bytes: data.data, count: data.size)
+    return Promise.async {
+      do {
+        return self.detectionOutcome(try detectArchive(in: bytes), name: nil)
+      } catch let error as ArchiveDomainError {
+        return self.detectionFailure(error)
+      } catch {
+        return self.detectionFailure(.ioError("Archive detection failed"))
+      }
+    }
+  }
+
+  private func detect(url: URL) -> NativeDetectionOutcome {
+    do {
+      return detectionOutcome(try detectArchive(at: url), name: url.lastPathComponent)
+    } catch let error as ArchiveDomainError {
+      return detectionFailure(error)
+    } catch {
+      return detectionFailure(.ioError("Archive detection failed"))
+    }
+  }
+
+  private func detectionOutcome(_ result: ArchiveDetection, name: String?) -> NativeDetectionOutcome {
+    let matches = name.flatMap { name in result.format.map { name.lowercased().hasSuffix("." + $0) } }
+    return NativeDetectionOutcome(
+      ok: true, format: result.format, confidence: result.format == nil ? 0 : 1,
+      extensionMatches: matches, error: nil
+    )
+  }
+
+  private func detectionFailure(_ error: ArchiveDomainError) -> NativeDetectionOutcome {
+    NativeDetectionOutcome(
+      ok: false, format: nil, confidence: 0, extensionMatches: nil, error: nativeArchiveFailure(error)
+    )
   }
 
   func openFile(path: String, options: NativePathOpenOptions) throws -> Promise<NativeOpenOutcome> {
@@ -117,7 +142,7 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
       guard let url = URL(string: uri), url.isFileURL else {
         return NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(code: .eInvalidArgument, message: "Not a file URL", operationId: nil, entryPath: nil, source: nil, destination: nil, nativeCode: nil))
       }
-      return await self.openInput(LocalFileInput(path: url.path))
+      return await self.openInput(LocalFileInput(uri: url, securityScope: options.iosSecurityScope))
     }
   }
 
@@ -149,17 +174,19 @@ final class HybridArchiveModule: HybridArchiveModuleSpec {
   }
 
   private func openFailure(_ error: ArchiveDomainError) -> NativeOpenOutcome {
-    NativeOpenOutcome(ok: false, reader: nil, error: NativeArchiveFailure(
-      code: mapCode(error.code), message: "\(error)", operationId: nil, entryPath: nil,
-      source: nil, destination: nil, nativeCode: nil
-    ))
+    NativeOpenOutcome(ok: false, reader: nil, error: nativeArchiveFailure(error))
   }
 
   func create(request: NativeCreationRequest) throws -> (any HybridNativeCreationTaskSpec) {
     HybridCreationTask(engine: engine, request: request)
   }
 
-  private func mapCode(_ code: String) -> ArchiveErrorCode {
-    ArchiveErrorCode(fromString: code) ?? .eInternal
-  }
+}
+
+func nativeArchiveFailure(_ error: ArchiveDomainError, operationId: String? = nil) -> NativeArchiveFailure {
+  NativeArchiveFailure(
+    code: ArchiveErrorCode(fromString: error.code) ?? .eInternal,
+    message: "\(error)", operationId: operationId, entryPath: nil,
+    source: nil, destination: nil, nativeCode: nil
+  )
 }

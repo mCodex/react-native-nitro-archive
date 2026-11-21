@@ -1,7 +1,7 @@
 /**
- * Archive formats exposed by this release. ZIP is the only supported format.
+ * Archive container formats recognized by the native core.
  */
-export type ArchiveFormat = "zip";
+export type ArchiveFormat = "zip" | "tar" | "tar.gz";
 
 /**
  * Content-based format detection. A filename extension alone does not establish support.
@@ -69,6 +69,7 @@ export interface ArchiveEntry {
 	/**
 	 * Compressed size in bytes, when available.
 	 */
+	/** TAR.GZ reports zero per entry. The archive size covers the gzip stream. */
 	readonly compressedSize: bigint;
 	/**
 	 * Uncompressed size in bytes declared by the entry.

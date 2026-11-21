@@ -128,6 +128,28 @@ describe('openArchive', () => {
     expect(page.totalEntries).toBe(2)
   })
 
+  it('unwraps verified data and preserves typed entry errors', async () => {
+    const request = getNativeArchiveModule().openFile as jest.Mock
+    const { reader: native } = await request('/tmp/test.zip')
+    const data = new ArrayBuffer(8)
+    native.readEntry
+      .mockResolvedValueOnce({ data })
+      .mockResolvedValueOnce({
+        error: {
+          code: 'E_BAD_PASSWORD',
+          message: 'Incorrect password',
+          entryPath: 'a.txt',
+        },
+      })
+
+    const reader = await openArchive(fileSource('/tmp/test.zip'))
+    await expect(reader.readEntry('a.txt', { maxBytes: 8n })).resolves.toBe(data)
+    await expect(reader.readEntry('a.txt', { maxBytes: 8n })).rejects.toMatchObject({
+      code: 'E_BAD_PASSWORD',
+      details: { entryPath: 'a.txt' },
+    })
+  })
+
   it('disposes the reader', async () => {
     const reader = await openArchive(fileSource('/tmp/test.zip'))
     reader.dispose()

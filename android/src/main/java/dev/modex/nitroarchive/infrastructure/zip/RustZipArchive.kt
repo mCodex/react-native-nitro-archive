@@ -9,12 +9,7 @@ internal object RustZipArchive {
     private const val MAX_SAFE_INTEGER = 9_007_199_254_740_991L
 
     fun inspect(data: ByteArray): ArchiveInspection {
-        val encoded = inspectBytes(data)
-            ?: throw ArchiveDomainError.Internal("Rust ZIP inspection returned no result")
-        val result = JSONObject(encoded.toString(Charsets.UTF_8))
-        if (result.has("error")) {
-            throw ArchiveDomainError.RustFailure(result.getString("error"))
-        }
+        val result = parseResponse(inspectBytes(data))
 
         val metadata = result.getJSONArray("entries")
         val entries = List(metadata.length()) { metadata.getJSONObject(it) }
@@ -28,13 +23,13 @@ internal object RustZipArchive {
                     uncompressedSize = entry.safeByteCount("uncompressedSize"),
                     encrypted = entry.getBoolean("encrypted"),
                     compressionMethod = entry.getString("compressionMethod"),
-                    crc32 = entry.getLong("crc32").toUInt(),
+                    crc32 = if (entry.isNull("crc32")) null else entry.getLong("crc32").toUInt(),
                     unixMode = if (entry.isNull("unixMode")) null else entry.getInt("unixMode").toUShort()
                 )
             }
 
         return ArchiveInspection(
-            format = "zip",
+            format = result.getString("format"),
             entryCount = entries.size,
             entries = entries,
             compressedSize = result.safeByteCount("compressedSize"),
@@ -60,9 +55,53 @@ internal object RustZipArchive {
             encodedPassword?.fill(0)
         } ?: throw ArchiveDomainError.Internal("Rust ZIP read returned no result")
 
-        result.error?.let { throw ArchiveDomainError.RustFailure(it) }
+        result.error?.let(::fail)
         return result.bytes ?: throw ArchiveDomainError.Internal("Rust ZIP read returned no bytes")
     }
+
+    fun detect(data: ByteArray): String? = detectionFormat(parseResponse(detectBytes(data)))
+
+    fun detect(path: String): String? {
+        if (path.contains('\u0000')) throw ArchiveDomainError.InvalidArgument("Invalid archive path")
+        return detectionFormat(parseResponse(detectPath(terminated(path))))
+    }
+
+    fun openDirectoryDescriptor(path: String): Int = openDirectoryPath(terminated(path))
+
+    fun rename(directory: Int, from: String, to: String, exchange: Boolean): Int =
+        renameDirectoryEntry(directory, terminated(from), terminated(to), exchange)
+
+    fun operation(request: JSONObject, password: String?, progress: Progress): JSONObject {
+        val secret = password?.toByteArray(Charsets.UTF_8)
+        val result = try {
+            runOperation(terminated(request.toString()), secret, progress)
+        } finally {
+            secret?.fill(0)
+        }
+        return parseResponse(result)
+    }
+
+    fun interface Progress {
+        fun update(bytes: Long, entries: Long): Boolean
+    }
+
+    private fun parseResponse(data: ByteArray?): JSONObject {
+        if (data == null) throw ArchiveDomainError.Internal("Rust archive operation returned no result")
+        val response = JSONObject(data.toString(Charsets.UTF_8))
+        if (response.has("error")) fail(response.getString("error"))
+        return response
+    }
+
+    private fun fail(code: String): Nothing {
+        if (code == "E_OPERATION_CANCELLED") throw ArchiveDomainError.OperationCancelled()
+        throw ArchiveDomainError.RustFailure(code)
+    }
+
+    private fun detectionFormat(result: JSONObject): String? =
+        if (result.isNull("format")) null else result.getString("format")
+
+    private fun terminated(value: String): ByteArray =
+        value.toByteArray(Charsets.UTF_8).let { it.copyOf(it.size + 1) }
 
     private fun JSONObject.safeByteCount(key: String): Long {
         val value = when (val number = get(key)) {
@@ -82,6 +121,12 @@ internal object RustZipArchive {
         password: ByteArray?,
         limit: Long
     ): ReadResult?
+
+    private external fun renameDirectoryEntry(directory: Int, from: ByteArray, to: ByteArray, exchange: Boolean): Int
+    private external fun openDirectoryPath(path: ByteArray): Int
+    private external fun detectBytes(data: ByteArray): ByteArray?
+    private external fun detectPath(path: ByteArray): ByteArray?
+    private external fun runOperation(request: ByteArray, password: ByteArray?, sink: Progress): ByteArray?
 
     private class ReadResult(val bytes: ByteArray?, val error: String?)
 }

@@ -10,15 +10,10 @@ Pod::Spec.new do |s|
   s.authors      = package["author"]
   s.platforms    = { :ios => "15.5", :tvos => "15.4" }
   s.source       = { :git => "https://github.com/mcodex/react-native-nitro-archive.git", :tag => "#{s.version}" }
-  s.dependency "SSZipArchive", "2.6.0"
   s.module_name  = "NitroArchive"
   s.source_files = ["ios/**/*.{h,hpp,cpp,mm,swift}", "rust/include/nitro_archive_core.h"]
-  s.public_header_files = [
-    "ios/Infrastructure/Zip/NitroArchiveZipEntryReader.h",
-    "rust/include/nitro_archive_core.h"
-  ]
+  s.public_header_files = "rust/include/nitro_archive_core.h"
   s.vendored_frameworks = "rust/artifacts/ios/NitroArchiveCore.xcframework"
-  s.pod_target_xcconfig = { "HEADER_SEARCH_PATHS" => "$(PODS_ROOT)/SSZipArchive/SSZipArchive" }
   load 'nitrogen/generated/ios/NitroArchive+autolinking.rb'
   add_nitrogen_files(s)
 end

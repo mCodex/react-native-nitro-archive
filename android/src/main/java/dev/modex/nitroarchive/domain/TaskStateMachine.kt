@@ -10,6 +10,7 @@ enum class TaskState {
 class TaskStateMachine {
     private var _state: TaskState = TaskState.IDLE
     private val lock = Any()
+    private var committing = false
 
     val state: TaskState
         get() = synchronized(lock) { _state }
@@ -29,11 +30,20 @@ class TaskStateMachine {
                     true
                 }
                 TaskState.RUNNING -> {
+                    if (committing) return false
                     _state = TaskState.CANCELLING
                     true
                 }
                 else -> false
             }
+        }
+    }
+
+    fun beginCommit() {
+        synchronized(lock) {
+            if (_state == TaskState.CANCELLING) throw ArchiveDomainError.OperationCancelled()
+            check(_state == TaskState.RUNNING)
+            committing = true
         }
     }
 

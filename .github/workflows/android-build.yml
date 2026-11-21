@@ -74,7 +74,7 @@ jobs:
         run: |
           rustup toolchain install 1.100.0 --profile minimal
           rustup target add --toolchain 1.100.0 aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-          sdkmanager --install 'ndk;27.1.12297006' 'platforms;android-37' 'build-tools;37.0.0'
+          sdkmanager --install 'ndk;27.1.12297006' 'platforms;android-37.0' 'build-tools;37.0.0'
           RUSTUP_TOOLCHAIN=1.100.0 sh rust/build-android.sh "$ANDROID_HOME/ndk/27.1.12297006"
 
       - name: Cache Gradle

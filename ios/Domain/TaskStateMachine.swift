@@ -13,6 +13,7 @@ final class TaskStateMachine: @unchecked Sendable {
 
   private let lock = NSLock()
   private var _state: State = .idle
+  private var committing = false
 
   var state: State {
     lock.lock()
@@ -35,6 +36,7 @@ final class TaskStateMachine: @unchecked Sendable {
       _state = .cancelled
       return true
     case .running:
+      guard !committing else { return false }
       _state = .cancelling
       return true
     case .cancelling, .succeeded, .failed, .cancelled:
@@ -42,17 +44,34 @@ final class TaskStateMachine: @unchecked Sendable {
     }
   }
 
+  func checkCancellation() throws {
+    let current = state
+    if current == .cancelling || current == .cancelled || Task.isCancelled {
+      throw ArchiveDomainError.operationCancelled
+    }
+  }
+
+  func beginCommit() throws {
+    lock.lock()
+    defer { lock.unlock() }
+    guard _state == .running, !Task.isCancelled else { throw ArchiveDomainError.operationCancelled }
+    committing = true
+  }
+
   func succeed() throws {
     lock.lock()
     defer { lock.unlock() }
-    guard _state == .running || _state == .cancelling else { throw ArchiveDomainError.invalidState("Task cannot succeed from state=\(_state.rawValue)") }
+    guard _state == .running else {
+      if _state == .cancelling { throw ArchiveDomainError.operationCancelled }
+      throw ArchiveDomainError.invalidState("Task cannot succeed from state=\(_state.rawValue)")
+    }
     _state = .succeeded
   }
 
-  func fail() {
+  func fail(cancelled: Bool = false) {
     lock.lock()
     defer { lock.unlock() }
     guard _state == .idle || _state == .running || _state == .cancelling else { return }
-    _state = .failed
+    _state = _state == .cancelling || cancelled ? .cancelled : .failed
   }
 }

@@ -3,16 +3,16 @@ package dev.modex.nitroarchive
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.ArrayBuffer
 import com.margelo.nitro.core.Promise
-import dev.modex.nitroarchive.application.ports.ArchiveEngine
 import dev.modex.nitroarchive.application.ports.ArchiveEngineSession
 import dev.modex.nitroarchive.application.ports.ArchiveInspection
 import dev.modex.nitroarchive.application.ports.EntryDescriptor
 import dev.modex.nitroarchive.infrastructure.zip.RustZipArchive
+import java.io.File
 
 class HybridArchiveReader(
     private val inspection: ArchiveInspection,
     private val session: ArchiveEngineSession,
-    private val engine: ArchiveEngine
+    private val cacheDirectory: File
 ) : HybridNativeArchiveReaderSpec() {
 
     override val format: String get() = inspection.format
@@ -59,22 +59,24 @@ class HybridArchiveReader(
         session.entry(at = path)?.let { toNativeEntry(it) }
     }
 
-    override fun readEntry(path: String, maxBytes: Double, password: String?, verifyChecksum: Boolean?): Promise<ArrayBuffer> = Promise.async {
-        val data = RustZipArchive.read(
-            data = session.archiveData,
-            path = path,
-            limit = maxBytes.toLong(),
-            password = password
-        )
-        ArrayBuffer.copy(data)
+    override fun readEntry(
+        path: String, maxBytes: Double, password: String?, verifyChecksum: Boolean?
+    ): Promise<NativeEntryReadOutcome> = Promise.async {
+        try {
+            val data = RustZipArchive.read(session.archiveData, path, maxBytes.toLong(), password)
+            NativeEntryReadOutcome(ArrayBuffer.copy(data), null)
+        } catch (error: Exception) {
+            val failure = archiveDomainFailure(error) ?: throw error
+            NativeEntryReadOutcome(null, archiveFailure(failure))
+        }
     }
 
     override fun startExtraction(request: NativeExtractionRequest): HybridNativeExtractionTaskSpec {
-        return HybridExtractionTask(session = session, engine = engine, request = request)
+        return HybridExtractionTask(cacheDirectory, session, inspection, request)
     }
 
     override fun startValidation(request: NativeValidationRequest): HybridNativeValidationTaskSpec {
-        return HybridValidationTask(session = session, request = request)
+        return HybridValidationTask(session, inspection, request)
     }
 
     private fun toNativeEntry(entry: EntryDescriptor): NativeArchiveEntry {

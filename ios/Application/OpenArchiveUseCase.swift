@@ -20,7 +20,7 @@ final class OpenArchiveUseCase {
     do {
       try input.stage(at: archiveURL)
       let inspection = try engine.inspect(at: archiveURL)
-      let session = StagedArchiveSession(entries: inspection.entries, archiveURL: archiveURL)
+      let session = StagedArchiveSession(inspection: inspection, archiveURL: archiveURL)
       return (inspection, session)
     } catch {
       try? fileManager.removeItem(at: tempDir)
@@ -31,15 +31,16 @@ final class OpenArchiveUseCase {
 
 private final class StagedArchiveSession: ArchiveEngineSession {
   private let entriesByPath: [String: EntryDescriptor]
-  let entries: [EntryDescriptor]
+  let inspection: ArchiveInspection
   let archiveURL: URL
+  var entries: [EntryDescriptor] { inspection.entries }
 
-  init(entries: [EntryDescriptor], archiveURL: URL) {
-    self.entries = entries
+  init(inspection: ArchiveInspection, archiveURL: URL) {
+    self.inspection = inspection
     self.archiveURL = archiveURL
 
     var map: [String: EntryDescriptor] = [:]
-    for entry in entries {
+    for entry in inspection.entries {
       map[entry.path] = entry
     }
     self.entriesByPath = map

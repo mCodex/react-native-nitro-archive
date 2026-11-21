@@ -1,14 +1,31 @@
 import Foundation
 
 final class LocalFileInput: ArchiveInput {
-  private let path: String
+  private let url: URL
+  private let securityScope: String?
 
   init(path: String) {
-    self.path = path
+    url = URL(fileURLWithPath: path)
+    securityScope = nil
+  }
+
+  init(uri: URL, securityScope: String?) {
+    url = uri
+    self.securityScope = securityScope ?? "auto"
   }
 
   func stage(at destination: URL) throws {
-    let source = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+    if let securityScope {
+      try withCoordinatedArchiveURL(url, securityScope: securityScope, mode: .read) {
+        try copy(from: $0, to: destination)
+      }
+    } else {
+      try copy(from: url, to: destination)
+    }
+  }
+
+  private func copy(from url: URL, to destination: URL) throws {
+    let source = url.resolvingSymlinksInPath()
     let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey]
     let sourceValues = try source.resourceValues(forKeys: keys)
     guard sourceValues.isRegularFile == true else {

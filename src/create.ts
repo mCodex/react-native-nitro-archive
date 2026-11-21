@@ -5,7 +5,7 @@ import type { CreateArchiveOptions, CreationResult } from "./types/creation";
 import type { ArchiveTask } from "./types/task";
 
 /**
- * Creates a single-use ZIP creation task without starting it.
+ * Creates a single-use archive creation task without starting it.
  * @param options Output location, entries and optional compression/output policy.
  * @returns A task; call start() once and dispose() when finished.
  * @throws ArchiveError for invalid or unsupported encryption settings.

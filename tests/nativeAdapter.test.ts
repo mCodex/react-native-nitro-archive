@@ -370,6 +370,30 @@ describe('mapExtractionOptions', () => {
 })
 
 describe('mapCreationOptions', () => {
+  it('maps TAR.GZ format and directory filters into the native request', () => {
+    const result = mapCreationOptions({
+      format: 'tar.gz',
+      destination: { kind: 'file', path: '/tmp/out.tgz' },
+      entries: [{
+        kind: 'directory', sourcePath: '/tmp/assets', archivePath: 'assets',
+        include: ['**/*.txt'], exclude: ['private/**'],
+      }],
+    })
+
+    expect(result.format).toBe('tar.gz')
+    expect(result.entries[0]?.include).toEqual(['**/*.txt'])
+    expect(result.entries[0]?.exclude).toEqual(['private/**'])
+  })
+
+  it('rejects password protection when creating a TAR archive', () => {
+    expect(() => mapCreationOptions({
+      format: 'tar',
+      destination: { kind: 'file', path: '/tmp/out.tar' },
+      entries: [],
+      encryption: { method: 'aes-256', password: 'secret' },
+    })).toThrow(expect.objectContaining({ code: 'E_UNSUPPORTED_ENCRYPTION' }))
+  })
+
   it('maps options with file destination', () => {
     const result = mapCreationOptions({
       destination: { kind: 'file', path: '/tmp/out.zip' },
@@ -427,6 +451,21 @@ describe('mapCreationOptions', () => {
 })
 
 describe('mapExtractionResult', () => {
+  it('throws a typed cancellation before interpreting success fields', () => {
+    expect(() => mapExtractionResult({
+      operationId: 'extract-one',
+      extractedEntries: 0,
+      skippedEntries: 0,
+      writtenBytes: 0,
+      durationMs: 20,
+      atomicWriteApplied: false,
+      warnings: [],
+      error: { code: 'E_OPERATION_CANCELLED', message: 'Cancelled' },
+    }, { kind: 'directory', path: '/out' })).toThrow(
+      expect.objectContaining({ code: 'E_OPERATION_CANCELLED' }),
+    )
+  })
+
   it('maps native extraction result', () => {
     const dest = { kind: 'directory' as const, path: '/out' }
     const result = mapExtractionResult(

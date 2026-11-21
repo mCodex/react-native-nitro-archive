@@ -1,4 +1,8 @@
-import type { ArchiveFileDestination, ArchiveUriSource } from "./archive";
+import type {
+	ArchiveFileDestination,
+	ArchiveFormat,
+	ArchiveUriSource,
+} from "./archive";
 import type { ArchiveWarning } from "./extraction";
 
 /**
@@ -178,11 +182,16 @@ export type ArchiveEntryInput =
 	| BufferArchiveEntryInput;
 
 /**
- * Inputs and output policy for a single ZIP creation task.
+ * Inputs and output policy for a single archive creation task.
  * @remarks
  * Creating the task does not start it. Call start() once and dispose() when finished.
  */
 export interface CreateArchiveOptions {
+	/**
+	 * Output container. Use "tar.gz" for gzip-compressed TAR.
+	 * @default "zip"
+	 */
+	readonly format?: ArchiveFormat;
 	/**
 	 * ZIP output file/document, or extraction output directory.
 	 */

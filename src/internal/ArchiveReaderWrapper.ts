@@ -1,8 +1,10 @@
-import { assertInteger, toNativeByteCount } from "./assertions";
+import { ArchiveError } from "../errors";
 import type { ArchiveReader } from "../public/ArchiveReader";
 import type { NativeArchiveReader } from "../specs/NativeArchiveReader.nitro";
+import type { ArchiveFormat } from "../types/archive";
 import type { ExtractArchiveOptions } from "../types/extraction";
 import type { ValidateArchiveOptions } from "../types/validation";
+import { assertInteger, toNativeByteCount } from "./assertions";
 import { ExtractionTaskWrapper } from "./ExtractionTaskWrapper";
 import {
 	mapEntry,
@@ -10,13 +12,14 @@ import {
 	mapExtractionOptions,
 	mapValidationOptions,
 } from "./nativeAdapter";
+import { throwNativeFailure } from "./outcome";
 import { ValidationTaskWrapper } from "./ValidationTaskWrapper";
 
 export class ArchiveReaderWrapper implements ArchiveReader {
 	constructor(private native: NativeArchiveReader) {}
 
 	get format() {
-		return this.native.format as "zip";
+		return this.native.format as ArchiveFormat;
 	}
 
 	get entryCount() {
@@ -46,8 +49,8 @@ export class ArchiveReaderWrapper implements ArchiveReader {
 	async listEntries(
 		options?: import("../types/archive").ListArchiveEntriesOptions,
 	) {
-    assertInteger(options?.offset ?? 0, "offset", 0);
-    assertInteger(options?.limit ?? 250, "limit", 1, 2000);
+		assertInteger(options?.offset ?? 0, "offset", 0);
+		assertInteger(options?.limit ?? 250, "limit", 1, 2000);
 
 		return mapEntryPage(
 			await this.native.listEntries(
@@ -70,15 +73,20 @@ export class ArchiveReaderWrapper implements ArchiveReader {
 		path: string,
 		options: { maxBytes: bigint; password?: string; verifyChecksum?: boolean },
 	) {
-    const maxBytes = toNativeByteCount(options.maxBytes, "maxBytes");
-    if (maxBytes === undefined) throw new TypeError("maxBytes is required.");
+		const maxBytes = toNativeByteCount(options.maxBytes, "maxBytes");
+		if (maxBytes === undefined) throw new TypeError("maxBytes is required.");
 
-		return this.native.readEntry(
+		const outcome = await this.native.readEntry(
 			path,
 			maxBytes,
 			options.password,
 			options.verifyChecksum,
 		);
+		throwNativeFailure(outcome.error);
+		if (outcome.data == null) {
+			throw new ArchiveError("E_INTERNAL", "Archive entry data is missing.");
+		}
+		return outcome.data;
 	}
 
 	extract(options: ExtractArchiveOptions) {

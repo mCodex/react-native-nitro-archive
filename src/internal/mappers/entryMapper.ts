@@ -48,6 +48,7 @@ export function mapEntryInput(entry: ArchiveEntryInput): NativeEntryInput {
 			return {
 				kind: "uri",
 				sourceUri: entry.source.uri,
+				iosSecurityScope: entry.source.iosSecurityScope,
 				archivePath: entry.archivePath,
 				compressionMethod: entry.compressionMethod,
 			};
@@ -58,6 +59,8 @@ export function mapEntryInput(entry: ArchiveEntryInput): NativeEntryInput {
 				archivePath: entry.archivePath,
 				recursive: entry.recursive,
 				includeHidden: entry.includeHidden,
+				include: entry.include,
+				exclude: entry.exclude,
 				followSymlinks: entry.followSymlinks,
 			};
 		case "buffer":

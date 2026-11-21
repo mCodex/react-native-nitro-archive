@@ -6,6 +6,7 @@ import type {
 import type {
 	NativeArchiveEntry,
 	NativeEntryPage,
+	NativeEntryReadOutcome,
 	NativeExtractionRequest,
 	NativeValidationRequest,
 } from "./NativeArchiveTypes";
@@ -31,7 +32,7 @@ export interface NativeArchiveReader
 		maxBytes: number,
 		password?: string,
 		verifyChecksum?: boolean,
-	): Promise<ArrayBuffer>;
+	): Promise<NativeEntryReadOutcome>;
 	startExtraction(request: NativeExtractionRequest): NativeExtractionTask;
 	startValidation(request: NativeValidationRequest): NativeValidationTask;
 }

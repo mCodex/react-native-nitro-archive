@@ -8,17 +8,10 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
   private let engine: ArchiveEngine
   private let request: NativeValidationRequest
 
-  private var progressCallback: ((NativeProgress) -> Void)?
+  private let progressReporter: NativeTaskProgress
 
-  private var cachedProgress: NativeProgress
-
-  var state: String {
-    stateMachine.state.rawValue
-  }
-
-  var progress: NativeProgress {
-    cachedProgress
-  }
+  var state: String { stateMachine.state.rawValue }
+  var progress: NativeProgress { progressReporter.snapshot }
 
   init(
     session: ArchiveEngineSession,
@@ -30,211 +23,142 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
     self.session = session
     self.engine = engine
     self.request = request
-    self.cachedProgress = NativeProgress(
-      operationId: opId,
-      phase: "preparing",
-      processedBytes: 0,
-      totalBytes: nil,
-      processedEntries: 0,
-      totalEntries: nil,
-      currentEntry: nil,
-      bytesPerSecond: nil,
-      estimatedSecondsRemaining: nil,
-      percentage: nil
-    )
+    progressReporter = NativeTaskProgress(operationId: opId, intervalMs: request.progressIntervalMs)
     super.init()
   }
 
   func start() throws -> Promise<NativeValidationResult> {
     Promise.async {
-      try self.stateMachine.start()
-      self.cachedProgress = NativeProgress(operationId: self.operationId, phase: "validating", processedBytes: 0, totalBytes: nil, processedEntries: 0, totalEntries: nil, currentEntry: nil, bytesPerSecond: nil, estimatedSecondsRemaining: nil, percentage: nil)
-
-      let entries = self.session.entries
-      let totalCount = entries.count
-      let nativeLimits = self.request.limits
-      let limits = ExtractionLimits(
-        maxEntries: nativeLimits?.maxEntries.map(Int.init) ?? 10000,
-        maxTotalUncompressedBytes: try parseNativeByteCount(nativeLimits?.maxTotalUncompressedBytes, default: 2_147_483_648),
-        maxEntryUncompressedBytes: try parseNativeByteCount(nativeLimits?.maxEntryUncompressedBytes, default: 536_870_912),
-        maxCompressionRatio: nativeLimits?.maxCompressionRatio.map(Int.init) ?? 1000,
-        maxPathDepth: nativeLimits?.maxPathDepth.map(Int.init) ?? 32,
-        maxPathBytes: nativeLimits?.maxPathBytes.map(Int.init) ?? 1024
-      )
-      _ = try ExtractionPlanner().planExtraction(entries: entries, include: nil, exclude: nil,
-        limits: limits, destination: URL(fileURLWithPath: "/"))
-      let verifyChecksums = self.request.verifyChecksums ?? true
-      let scanAllEntries = self.request.scanAllEntries ?? true
-      let password = self.request.password
-
-      self.emitProgress(phase: "validating", processedBytes: 0,
-                         processedEntries: 0, currentEntry: nil,
-                         totalEntries: totalCount)
-
-      var issues: [NativeArchiveIssue] = []
-      var checkedEntries = 0
-      var checkedUncompressedBytes: UInt64 = 0
-      var encryptedEntries = 0
-      let startTime = CFAbsoluteTimeGetCurrent()
-      let maxChecksumBytes: UInt64 = 64 * 1024 * 1024
-
-      let entriesToValidate = scanAllEntries ? entries : entries.filter { $0.encrypted }
-
-      for (index, entry) in entriesToValidate.enumerated() {
-        try Task.checkCancellation()
-
-        if entry.encrypted {
-          encryptedEntries += 1
+      do {
+        try self.stateMachine.start()
+      } catch let error as ArchiveDomainError {
+        return self.failure(error)
+      }
+      defer { self.stateMachine.fail() }
+      do {
+        let entries = self.session.entries
+        let nativeLimits = self.request.limits
+        let limits = ExtractionLimits(
+          maxEntries: try parseNativePositiveInt(nativeLimits?.maxEntries, default: 10_000),
+          maxTotalUncompressedBytes: try parseNativeByteCount(nativeLimits?.maxTotalUncompressedBytes, default: 2_147_483_648),
+          maxEntryUncompressedBytes: try parseNativeByteCount(nativeLimits?.maxEntryUncompressedBytes, default: 536_870_912),
+          maxCompressionRatio: try parseNativePositiveInt(nativeLimits?.maxCompressionRatio, default: 1000),
+          maxPathDepth: try parseNativePositiveInt(nativeLimits?.maxPathDepth, default: 32),
+          maxPathBytes: try parseNativePositiveInt(nativeLimits?.maxPathBytes, default: 1024)
+        )
+        let inspection = self.session.inspection
+        let solidCompression = inspection.format == "tar.gz"
+        if solidCompression,
+           let compressed = inspection.compressedSize, let expanded = inspection.totalUncompressedSize,
+           exceedsCompressionRatio(expanded, compressed, limits.maxCompressionRatio) {
+          throw ArchiveDomainError.extractionLimitExceeded(limit: "maxCompressionRatio", value: "exceeded")
         }
+        _ = try ExtractionPlanner().planExtraction(entries: entries, include: nil, exclude: nil,
+          limits: limits, destination: URL(fileURLWithPath: "/"), checkEntryCompressionRatio: !solidCompression)
+        let verifyChecksums = self.request.verifyChecksums ?? true
+        let entriesToValidate = (self.request.scanAllEntries ?? true) ? entries : entries.filter { $0.encrypted }
+        let totalEntries = entriesToValidate.count
+        let workspace = verifyChecksums ? try ArchiveWorkspace() : nil
+        defer { withExtendedLifetime(workspace) {} }
 
-        if verifyChecksums {
-          if entry.encrypted && (password?.isEmpty ?? true) {
-            issues.append(NativeArchiveIssue(
-              code: "E_PASSWORD_REQUIRED",
-              severity: "error",
-              message: "Password is required to validate encrypted entry: \(entry.path)",
-              entryPath: entry.path,
-              entryIndex: Double(index)
-            ))
-            checkedEntries += 1
-            continue
-          }
+        self.progressReporter.emit(phase: "validating", totalEntries: totalEntries)
+        let start = ProcessInfo.processInfo.systemUptime
+        var issues: [NativeArchiveIssue] = []
+        var checkedEntries = 0
+        var checkedUncompressedBytes: UInt64 = 0
+        var encryptedEntries = 0
 
-          guard entry.uncompressedSize <= maxChecksumBytes else {
-            issues.append(NativeArchiveIssue(
-              code: "E_ARCHIVE_TOO_LARGE",
-              severity: "warning",
-              message: "Checksum validation skipped for large entry: \(entry.path)",
-              entryPath: entry.path,
-              entryIndex: Double(index)
-            ))
-            checkedEntries += 1
-            continue
-          }
+        for entry in entriesToValidate {
+          try self.stateMachine.checkCancellation()
+          if entry.encrypted { encryptedEntries += 1 }
 
           do {
-            let maxBytes = max(entry.uncompressedSize, 1)
-            let limit = min(maxBytes, maxChecksumBytes)
-            _ = try await self.engine.readEntry(
-              session: self.session,
-              path: entry.path,
-              limit: limit,
-              password: password
-            )
-            checkedEntries += 1
+            if entry.kind == "symlink" || entry.kind == "hardlink" {
+              throw ArchiveDomainError.unsafeSymlink(entry.path)
+            }
+            guard entry.kind == "file" || entry.kind == "directory" else {
+              throw ArchiveDomainError.specialFile(entry.path)
+            }
+            if let workspace, entry.kind == "file" {
+              try self.verify(entry, in: workspace, limit: limits.maxEntryUncompressedBytes)
+            }
             checkedUncompressedBytes += entry.uncompressedSize
           } catch let error as ArchiveDomainError {
             switch error {
-            case .checksumMismatch:
+            case .checksumMismatch, .passwordRequired, .badPassword, .unsupportedEncryption,
+                 .unsupportedCompression, .entryNotFound, .bufferLimitExceeded, .unsafeSymlink, .specialFile:
               issues.append(NativeArchiveIssue(
-                code: "E_CHECKSUM_MISMATCH",
-                severity: "error",
-                message: "Checksum validation failed for entry: \(entry.path)",
-                entryPath: entry.path,
-                entryIndex: Double(index)
-              ))
-            case .passwordRequired, .badPassword, .unsupportedEncryption:
-              issues.append(NativeArchiveIssue(
-                code: error.code,
-                severity: "error",
-                message: "\(error)",
-                entryPath: entry.path,
-                entryIndex: Double(index)
-              ))
-            case .bufferLimitExceeded, .entryNotFound:
-              issues.append(NativeArchiveIssue(
-                code: error.code,
-                severity: "error",
-                message: "\(error)",
-                entryPath: entry.path,
-                entryIndex: Double(index)
+                code: error.code, severity: "error", message: "\(error)",
+                entryPath: entry.path, entryIndex: Double(entry.index)
               ))
             default:
               throw error
             }
           }
-        } else {
+
           checkedEntries += 1
-          checkedUncompressedBytes += entry.uncompressedSize
+          self.progressReporter.emit(
+            phase: "validating", bytes: checkedUncompressedBytes, entries: UInt64(checkedEntries),
+            currentEntry: entry.path, totalEntries: totalEntries
+          )
         }
 
-        self.emitProgress(phase: "validating", processedBytes: checkedUncompressedBytes,
-                          processedEntries: index + 1, currentEntry: entry.path,
-                          totalEntries: totalCount)
+        try self.stateMachine.succeed()
+
+        let duration = (ProcessInfo.processInfo.systemUptime - start) * 1000
+        let isValid = !issues.contains { $0.severity == "error" }
+
+        self.progressReporter.emit(
+          phase: "finalizing", bytes: checkedUncompressedBytes, entries: UInt64(checkedEntries),
+          totalEntries: totalEntries, complete: true
+        )
+
+        return NativeValidationResult(
+          operationId: self.operationId,
+          valid: isValid,
+          checkedEntries: Double(checkedEntries),
+          checkedUncompressedBytes: Double(checkedUncompressedBytes),
+          encryptedEntries: Double(encryptedEntries),
+          durationMs: duration,
+          issues: issues, error: nil
+        )
+      } catch let error as ArchiveDomainError {
+        self.stateMachine.fail(cancelled: error == .operationCancelled)
+        return self.failure(error)
       }
-
-      try self.stateMachine.succeed()
-
-      let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
-      let isValid = !issues.contains { $0.severity == "error" }
-
-      self.emitProgress(phase: "finalizing", processedBytes: checkedUncompressedBytes,
-                        processedEntries: checkedEntries, currentEntry: nil,
-                        totalEntries: totalCount, percentage: 100)
-
-      return NativeValidationResult(
-        operationId: self.operationId,
-        valid: isValid,
-        checkedEntries: Double(checkedEntries),
-        checkedUncompressedBytes: Double(checkedUncompressedBytes),
-        encryptedEntries: Double(encryptedEntries),
-        durationMs: duration,
-        issues: issues
-      )
     }
   }
 
-  func cancel() throws -> Bool {
-    let didCancel = stateMachine.cancel()
-    if didCancel {
-      cachedProgress = NativeProgress(operationId: operationId, phase: "cleaning-up",
-                                       processedBytes: 0, totalBytes: nil,
-                                       processedEntries: 0, totalEntries: nil,
-                                       currentEntry: nil, bytesPerSecond: nil,
-                                       estimatedSecondsRemaining: nil, percentage: nil)
-    }
-    return didCancel
+  private func failure(_ error: ArchiveDomainError) -> NativeValidationResult {
+    NativeValidationResult(
+      operationId: operationId, valid: false, checkedEntries: 0, checkedUncompressedBytes: 0,
+      encryptedEntries: 0, durationMs: 0, issues: [], error: nativeArchiveFailure(error, operationId: operationId)
+    )
   }
+
+  private func verify(_ entry: EntryDescriptor, in workspace: ArchiveWorkspace, limit: UInt64) throws {
+    let url = workspace.directory.appendingPathComponent("verify")
+    let output = try workspace.createFile(at: url)
+    defer {
+      try? output.close()
+      try? FileManager.default.removeItem(at: url)
+    }
+
+    let written = try engine.extractEntry(
+      session: session, path: entry.path, outputFd: output.fileDescriptor,
+      limit: limit, password: request.password
+    ) { _, _ in
+      (try? self.stateMachine.checkCancellation()) != nil
+    }
+    guard written == entry.uncompressedSize else {
+      throw ArchiveDomainError.invalidArchive("Verified size does not match indexed metadata")
+    }
+  }
+
+  func cancel() throws -> Bool { stateMachine.cancel() }
 
   func onProgress(callback: @escaping (NativeProgress) -> Void) throws -> () -> Void {
-    progressCallback = callback
-    return { [weak self] in
-      self?.progressCallback = nil
-    }
-  }
-
-  private func emitProgress(
-    phase: String,
-    processedBytes: UInt64,
-    processedEntries: Int,
-    currentEntry: String?,
-    totalEntries: Int? = nil,
-    percentage: Double? = nil
-  ) {
-    let total = totalEntries.map(Double.init)
-    let pct: Double?
-    if let p = percentage {
-      pct = p
-    } else if let t = total, t > 0 {
-      pct = min(Double(processedEntries) / t * 100, 100)
-    } else {
-      pct = nil
-    }
-
-    let snapshot = NativeProgress(
-      operationId: operationId,
-      phase: phase,
-      processedBytes: Double(processedBytes),
-      totalBytes: nil,
-      processedEntries: Double(processedEntries),
-      totalEntries: total,
-      currentEntry: currentEntry,
-      bytesPerSecond: nil,
-      estimatedSecondsRemaining: nil,
-      percentage: pct
-    )
-
-    cachedProgress = snapshot
-    progressCallback?(snapshot)
+    progressReporter.setCallback(callback)
+    return { [weak self] in self?.progressReporter.setCallback(nil) }
   }
 }

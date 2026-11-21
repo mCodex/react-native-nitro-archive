@@ -49,6 +49,11 @@ export interface NativeArchiveFailure {
 	nativeCode?: number;
 }
 
+export interface NativeEntryReadOutcome {
+	data?: ArrayBuffer;
+	error?: NativeArchiveFailure;
+}
+
 export interface NativeDetectionOutcome {
 	ok: boolean;
 	format?: string;
@@ -92,6 +97,7 @@ export interface NativeExtractionResult {
 	durationMs: number;
 	atomicWriteApplied: boolean;
 	warnings: readonly NativeWarning[];
+	error?: NativeArchiveFailure;
 }
 
 export interface NativeCreationResult {
@@ -102,6 +108,7 @@ export interface NativeCreationResult {
 	durationMs: number;
 	atomicWriteApplied: boolean;
 	warnings: readonly NativeWarning[];
+	error?: NativeArchiveFailure;
 }
 
 export interface NativeValidationResult {
@@ -112,6 +119,7 @@ export interface NativeValidationResult {
 	encryptedEntries: number;
 	durationMs: number;
 	issues: readonly NativeArchiveIssue[];
+	error?: NativeArchiveFailure;
 }
 
 export interface NativeArchiveIssue {
@@ -174,8 +182,10 @@ export interface NativeExtractionLimits {
 }
 
 export interface NativeCreationRequest {
+	format?: string;
 	destinationPath?: string;
 	destinationUri?: string;
+	destinationIosSecurityScope?: string;
 	destinationKind: string;
 	entries: readonly NativeEntryInput[];
 	compressionProfile?: string;
@@ -195,17 +205,20 @@ export interface NativeEntryInput {
 	kind: string;
 	sourcePath?: string;
 	sourceUri?: string;
+	iosSecurityScope?: string;
 	archivePath: string;
 	data?: ArrayBuffer;
 	recursive?: boolean;
 	includeHidden?: boolean;
+	include?: readonly string[];
+	exclude?: readonly string[];
 	followSymlinks?: boolean;
 	modifiedAt?: number;
 	compressionMethod?: string;
 }
 
 export interface NativeValidationRequest {
-  limits?: NativeExtractionLimits;
+	limits?: NativeExtractionLimits;
 	verifyChecksums?: boolean;
 	scanAllEntries?: boolean;
 	password?: string;
