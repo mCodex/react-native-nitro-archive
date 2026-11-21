@@ -1,6 +1,6 @@
-package com.mcodex.nitroarchive.infrastructure.storage
+package dev.modex.nitroarchive.infrastructure.storage
 
-import com.mcodex.nitroarchive.application.ports.ArchiveOutput
+import dev.modex.nitroarchive.application.ports.ArchiveOutput
 import java.io.File
 import java.io.FileOutputStream
 

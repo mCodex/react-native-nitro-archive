@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.platform
+package dev.modex.nitroarchive.platform
 
 import android.content.ContentResolver
 import android.net.Uri
@@ -23,7 +23,7 @@ class ParcelFileDescriptorHandle(
     companion object {
         fun open(contentResolver: ContentResolver, uri: Uri, mode: String): ParcelFileDescriptorHandle {
             val pfd = contentResolver.openFileDescriptor(uri, mode)
-                ?: throw com.mcodex.nitroarchive.domain.ArchiveDomainError.FileNotAvailable("Cannot open: $uri")
+                ?: throw dev.modex.nitroarchive.domain.ArchiveDomainError.FileNotAvailable("Cannot open: $uri")
             return ParcelFileDescriptorHandle(pfd)
         }
     }

@@ -1,13 +1,13 @@
-package com.mcodex.nitroarchive
+package dev.modex.nitroarchive
 
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.ArrayBuffer
 import com.margelo.nitro.core.Promise
-import com.mcodex.nitroarchive.application.ports.ArchiveEngine
-import com.mcodex.nitroarchive.application.ports.ArchiveEngineSession
-import com.mcodex.nitroarchive.application.ports.ArchiveInspection
-import com.mcodex.nitroarchive.application.ports.EntryDescriptor
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.application.ports.ArchiveEngine
+import dev.modex.nitroarchive.application.ports.ArchiveEngineSession
+import dev.modex.nitroarchive.application.ports.ArchiveInspection
+import dev.modex.nitroarchive.application.ports.EntryDescriptor
+import dev.modex.nitroarchive.domain.ArchiveDomainError
 
 class HybridArchiveReader(
     private val inspection: ArchiveInspection,

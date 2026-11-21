@@ -1,12 +1,12 @@
-package com.mcodex.nitroarchive.infrastructure.storage
+package dev.modex.nitroarchive.infrastructure.storage
 
 import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import android.system.StructStat
-import com.mcodex.nitroarchive.application.ports.DirectoryOutput
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
-import com.mcodex.nitroarchive.domain.ArchivePath
+import dev.modex.nitroarchive.application.ports.DirectoryOutput
+import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.domain.ArchivePath
 import java.io.File
 
 class SafeDirectoryOutput(baseDir: File) : DirectoryOutput {

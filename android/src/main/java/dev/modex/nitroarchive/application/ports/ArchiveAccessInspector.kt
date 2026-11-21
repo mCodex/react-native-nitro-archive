@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.application.ports
+package dev.modex.nitroarchive.application.ports
 
 enum class ArchiveAccessMode { READ, WRITE, CREATE_CHILDREN }
 

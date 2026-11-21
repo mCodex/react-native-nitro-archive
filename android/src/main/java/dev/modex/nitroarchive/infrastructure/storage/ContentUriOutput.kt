@@ -1,8 +1,8 @@
-package com.mcodex.nitroarchive.infrastructure.storage
+package dev.modex.nitroarchive.infrastructure.storage
 
 import android.content.ContentResolver
 import android.net.Uri
-import com.mcodex.nitroarchive.application.ports.ArchiveOutput
+import dev.modex.nitroarchive.application.ports.ArchiveOutput
 
 class ContentUriOutput(
     private val contentResolver: ContentResolver,
@@ -13,7 +13,7 @@ class ContentUriOutput(
     override suspend fun write(data: ByteArray) {
         if (outputStream == null) {
             outputStream = contentResolver.openOutputStream(uri)
-                ?: throw com.mcodex.nitroarchive.domain.ArchiveDomainError.FileNotAvailable("Cannot open output: $uri")
+                ?: throw dev.modex.nitroarchive.domain.ArchiveDomainError.FileNotAvailable("Cannot open output: $uri")
         }
         outputStream?.write(data)
     }

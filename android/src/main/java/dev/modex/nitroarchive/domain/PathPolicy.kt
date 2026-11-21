@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.domain
+package dev.modex.nitroarchive.domain
 
 enum class SymlinkPolicy { REJECT, MATERIALIZE, PRESERVE_SAFE }
 

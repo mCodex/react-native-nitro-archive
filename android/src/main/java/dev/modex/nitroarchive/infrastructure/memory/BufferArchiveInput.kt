@@ -1,6 +1,6 @@
-package com.mcodex.nitroarchive.infrastructure.memory
+package dev.modex.nitroarchive.infrastructure.memory
 
-import com.mcodex.nitroarchive.application.ports.ArchiveInput
+import dev.modex.nitroarchive.application.ports.ArchiveInput
 
 class BufferArchiveInput(private val data: ByteArray) : ArchiveInput {
     override val estimatedSize: Long? get() = data.size.toLong()

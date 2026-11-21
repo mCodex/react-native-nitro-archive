@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive
+package dev.modex.nitroarchive
 
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext

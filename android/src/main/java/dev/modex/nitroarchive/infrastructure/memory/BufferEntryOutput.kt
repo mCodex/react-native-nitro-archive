@@ -1,6 +1,6 @@
-package com.mcodex.nitroarchive.infrastructure.memory
+package dev.modex.nitroarchive.infrastructure.memory
 
-import com.mcodex.nitroarchive.application.ports.ArchiveOutput
+import dev.modex.nitroarchive.application.ports.ArchiveOutput
 
 class BufferEntryOutput : ArchiveOutput {
     private val _data = mutableListOf<ByteArray>()

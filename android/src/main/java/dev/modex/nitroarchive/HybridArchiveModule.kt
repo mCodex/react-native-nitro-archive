@@ -1,20 +1,20 @@
-package com.mcodex.nitroarchive
+package dev.modex.nitroarchive
 
 import android.content.Context
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.ArrayBuffer
 import com.margelo.nitro.core.Promise
-import com.mcodex.nitroarchive.application.CreateArchiveUseCase
-import com.mcodex.nitroarchive.application.OpenArchiveUseCase
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
-import com.mcodex.nitroarchive.infrastructure.memory.BufferArchiveInput
-import com.mcodex.nitroarchive.infrastructure.storage.LocalFileInput
-import com.mcodex.nitroarchive.infrastructure.zip.Zip4jEngine
-import com.mcodex.nitroarchive.platform.AndroidArchiveAccessInspector
+import dev.modex.nitroarchive.application.CreateArchiveUseCase
+import dev.modex.nitroarchive.application.OpenArchiveUseCase
+import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.infrastructure.memory.BufferArchiveInput
+import dev.modex.nitroarchive.infrastructure.storage.LocalFileInput
+import dev.modex.nitroarchive.infrastructure.zip.Zip4jEngine
+import dev.modex.nitroarchive.platform.AndroidArchiveAccessInspector
 import java.io.File
 import java.io.RandomAccessFile
 
-class HybridArchiveModule() : HybridArchiveModuleSpec() {
+open class HybridArchiveModule() : HybridArchiveModuleSpec() {
     private val context get() =
         com.margelo.nitro.NitroModules.applicationContext?.applicationContext
             ?: throw ArchiveDomainError.Internal("NitroModules not initialized")

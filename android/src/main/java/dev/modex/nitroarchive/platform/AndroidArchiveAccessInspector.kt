@@ -1,9 +1,9 @@
-package com.mcodex.nitroarchive.platform
+package dev.modex.nitroarchive.platform
 
 import android.content.Context
-import com.mcodex.nitroarchive.application.ports.AccessReport
-import com.mcodex.nitroarchive.application.ports.ArchiveAccessInspector
-import com.mcodex.nitroarchive.application.ports.ArchiveAccessMode
+import dev.modex.nitroarchive.application.ports.AccessReport
+import dev.modex.nitroarchive.application.ports.ArchiveAccessInspector
+import dev.modex.nitroarchive.application.ports.ArchiveAccessMode
 import java.io.File
 
 class AndroidArchiveAccessInspector(private val context: Context) : ArchiveAccessInspector {

@@ -1,7 +1,7 @@
-package com.mcodex.nitroarchive.application
+package dev.modex.nitroarchive.application
 
-import com.mcodex.nitroarchive.application.ports.*
-import com.mcodex.nitroarchive.domain.ProgressSnapshot
+import dev.modex.nitroarchive.application.ports.*
+import dev.modex.nitroarchive.domain.ProgressSnapshot
 
 data class ValidationSummary(
     val valid: Boolean,

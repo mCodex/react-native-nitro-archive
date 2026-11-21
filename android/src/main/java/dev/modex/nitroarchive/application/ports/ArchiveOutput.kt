@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.application.ports
+package dev.modex.nitroarchive.application.ports
 
 interface ArchiveOutput {
     suspend fun write(data: ByteArray)

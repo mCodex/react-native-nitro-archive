@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.domain
+package dev.modex.nitroarchive.domain
 
 class DuplicatePathPolicy(private val policy: DuplicateEntryPolicy = DuplicateEntryPolicy.ERROR) {
     private val seenPaths = mutableSetOf<String>()

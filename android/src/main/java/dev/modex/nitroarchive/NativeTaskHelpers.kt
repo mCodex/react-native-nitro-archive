@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive
+package dev.modex.nitroarchive
 
 import com.margelo.nitro.archive.NativeProgress
 
@@ -68,11 +68,11 @@ internal fun isZipSignature(bytes: ByteArray): Boolean = bytes.size >= 4
 
 /**
  * Maps a Nitro access-mode string to the domain
- * [com.mcodex.nitroarchive.application.ports.ArchiveAccessMode].
+ * [dev.modex.nitroarchive.application.ports.ArchiveAccessMode].
  */
-internal fun parseAccessMode(mode: String): com.mcodex.nitroarchive.application.ports.ArchiveAccessMode =
+internal fun parseAccessMode(mode: String): dev.modex.nitroarchive.application.ports.ArchiveAccessMode =
     if (mode == "write" || mode == "create-children") {
-        com.mcodex.nitroarchive.application.ports.ArchiveAccessMode.WRITE
+        dev.modex.nitroarchive.application.ports.ArchiveAccessMode.WRITE
     } else {
-        com.mcodex.nitroarchive.application.ports.ArchiveAccessMode.READ
+        dev.modex.nitroarchive.application.ports.ArchiveAccessMode.READ
     }

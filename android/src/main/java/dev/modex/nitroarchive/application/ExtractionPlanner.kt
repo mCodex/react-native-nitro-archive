@@ -1,10 +1,10 @@
-package com.mcodex.nitroarchive.application
+package dev.modex.nitroarchive.application
 
-import com.mcodex.nitroarchive.application.ports.EntryDescriptor
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
-import com.mcodex.nitroarchive.domain.ArchivePath
-import com.mcodex.nitroarchive.domain.DuplicatePathPolicy
-import com.mcodex.nitroarchive.domain.ExtractionLimits
+import dev.modex.nitroarchive.application.ports.EntryDescriptor
+import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.domain.ArchivePath
+import dev.modex.nitroarchive.domain.DuplicatePathPolicy
+import dev.modex.nitroarchive.domain.ExtractionLimits
 
 data class ExtractionPlan(
     val entries: List<EntryDescriptor>,
@@ -79,7 +79,7 @@ class ExtractionPlanner {
 
         val totalBytes = filtered.sumOf { it.uncompressedSize }
         if (totalBytes > limits.maxTotalUncompressedBytes) {
-            throw com.mcodex.nitroarchive.domain.ArchiveDomainError.ExtractionLimitExceeded(
+            throw dev.modex.nitroarchive.domain.ArchiveDomainError.ExtractionLimitExceeded(
                 limit = "maxTotalUncompressedBytes",
                 value = "$totalBytes"
             )

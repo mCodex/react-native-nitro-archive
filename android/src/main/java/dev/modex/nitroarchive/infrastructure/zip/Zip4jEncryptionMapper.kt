@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.infrastructure.zip
+package dev.modex.nitroarchive.infrastructure.zip
 
 import net.lingala.zip4j.model.enums.EncryptionMethod
 import net.lingala.zip4j.model.enums.AesKeyStrength

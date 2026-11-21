@@ -1,6 +1,6 @@
-package com.mcodex.nitroarchive.infrastructure.storage
+package dev.modex.nitroarchive.infrastructure.storage
 
-import com.mcodex.nitroarchive.application.ports.ArchiveInput
+import dev.modex.nitroarchive.application.ports.ArchiveInput
 import java.io.File
 
 class LocalFileInput(private val path: String) : ArchiveInput {

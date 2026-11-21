@@ -1,15 +1,15 @@
-package com.mcodex.nitroarchive
+package dev.modex.nitroarchive
 
 import android.content.Context
 import android.net.Uri
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.Promise
-import com.mcodex.nitroarchive.application.CreateArchiveUseCase
-import com.mcodex.nitroarchive.application.ports.*
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
-import com.mcodex.nitroarchive.domain.TaskStateMachine
-import com.mcodex.nitroarchive.infrastructure.storage.ContentUriOutput
-import com.mcodex.nitroarchive.infrastructure.storage.LocalFileOutput
+import dev.modex.nitroarchive.application.CreateArchiveUseCase
+import dev.modex.nitroarchive.application.ports.*
+import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.domain.TaskStateMachine
+import dev.modex.nitroarchive.infrastructure.storage.ContentUriOutput
+import dev.modex.nitroarchive.infrastructure.storage.LocalFileOutput
 import java.io.File
 import java.util.UUID
 

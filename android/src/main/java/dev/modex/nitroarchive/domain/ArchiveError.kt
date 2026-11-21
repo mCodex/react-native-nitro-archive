@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.domain
+package dev.modex.nitroarchive.domain
 
 sealed class ArchiveDomainError(
     val code: String,

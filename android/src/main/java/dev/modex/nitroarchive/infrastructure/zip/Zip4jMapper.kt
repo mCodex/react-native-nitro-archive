@@ -1,6 +1,6 @@
-package com.mcodex.nitroarchive.infrastructure.zip
+package dev.modex.nitroarchive.infrastructure.zip
 
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.domain.ArchiveDomainError
 
 object Zip4jMapper {
     fun mapError(error: Exception): ArchiveDomainError {

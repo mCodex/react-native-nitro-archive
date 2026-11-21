@@ -1,16 +1,16 @@
-package com.mcodex.nitroarchive
+package dev.modex.nitroarchive
 
 import com.margelo.nitro.archive.*
 import com.margelo.nitro.core.Promise
-import com.mcodex.nitroarchive.application.ExtractArchiveUseCase
-import com.mcodex.nitroarchive.application.ExtractionPlanner
-import com.mcodex.nitroarchive.application.ports.ArchiveEngine
-import com.mcodex.nitroarchive.application.ports.ArchiveEngineSession
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
-import com.mcodex.nitroarchive.domain.ExtractionLimits
-import com.mcodex.nitroarchive.domain.TaskState
-import com.mcodex.nitroarchive.domain.TaskStateMachine
-import com.mcodex.nitroarchive.infrastructure.storage.SafeDirectoryOutput
+import dev.modex.nitroarchive.application.ExtractArchiveUseCase
+import dev.modex.nitroarchive.application.ExtractionPlanner
+import dev.modex.nitroarchive.application.ports.ArchiveEngine
+import dev.modex.nitroarchive.application.ports.ArchiveEngineSession
+import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.domain.ExtractionLimits
+import dev.modex.nitroarchive.domain.TaskState
+import dev.modex.nitroarchive.domain.TaskStateMachine
+import dev.modex.nitroarchive.infrastructure.storage.SafeDirectoryOutput
 import java.io.File
 import java.util.UUID
 

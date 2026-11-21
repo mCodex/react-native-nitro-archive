@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.domain
+package dev.modex.nitroarchive.domain
 
 enum class TaskState {
     IDLE, RUNNING, CANCELLING, SUCCEEDED, FAILED, CANCELLED;

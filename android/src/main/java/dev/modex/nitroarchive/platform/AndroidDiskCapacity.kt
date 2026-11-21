@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.platform
+package dev.modex.nitroarchive.platform
 
 import android.os.StatFs
 import java.io.File

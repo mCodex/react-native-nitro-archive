@@ -1,9 +1,9 @@
-package com.mcodex.nitroarchive.infrastructure.storage
+package dev.modex.nitroarchive.infrastructure.storage
 
 import android.content.ContentResolver
 import android.net.Uri
-import com.mcodex.nitroarchive.application.ports.ArchiveInput
-import com.mcodex.nitroarchive.platform.ParcelFileDescriptorHandle
+import dev.modex.nitroarchive.application.ports.ArchiveInput
+import dev.modex.nitroarchive.platform.ParcelFileDescriptorHandle
 
 class ContentUriInput(
     private val contentResolver: ContentResolver,

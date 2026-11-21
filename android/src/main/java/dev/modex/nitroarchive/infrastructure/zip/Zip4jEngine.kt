@@ -1,8 +1,8 @@
-package com.mcodex.nitroarchive.infrastructure.zip
+package dev.modex.nitroarchive.infrastructure.zip
 
-import com.mcodex.nitroarchive.application.ports.*
-import com.mcodex.nitroarchive.domain.ArchiveDomainError
-import com.mcodex.nitroarchive.domain.ProgressSnapshot
+import dev.modex.nitroarchive.application.ports.*
+import dev.modex.nitroarchive.domain.ArchiveDomainError
+import dev.modex.nitroarchive.domain.ProgressSnapshot
 import net.lingala.zip4j.ZipFile
 import net.lingala.zip4j.exception.ZipException
 import net.lingala.zip4j.model.FileHeader

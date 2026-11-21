@@ -1,6 +1,6 @@
-package com.mcodex.nitroarchive.application
+package dev.modex.nitroarchive.application
 
-import com.mcodex.nitroarchive.application.ports.*
+import dev.modex.nitroarchive.application.ports.*
 
 data class OpenArchiveResult(
     val inspection: ArchiveInspection,

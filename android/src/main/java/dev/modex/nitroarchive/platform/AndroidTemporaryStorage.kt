@@ -1,4 +1,4 @@
-package com.mcodex.nitroarchive.platform
+package dev.modex.nitroarchive.platform
 
 import java.io.File
 import java.util.UUID
@@ -7,7 +7,7 @@ class AndroidTemporaryStorage(private val cacheDir: File) {
     private val tempDir: File
 
     init {
-        tempDir = File(cacheDir, "com.mcodex.nitroarchive")
+        tempDir = File(cacheDir, "dev.modex.nitroarchive")
         tempDir.mkdirs()
     }
 
