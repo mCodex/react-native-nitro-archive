@@ -80,3 +80,7 @@ lib/
 tsconfig.tsbuildinfo
 
 nitrogen/
+
+# Rust build outputs
+/rust/target/
+/rust/artifacts/

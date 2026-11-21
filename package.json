@@ -17,7 +17,7 @@
     "release": "semantic-release",
     "build": "yarn typecheck && bob build",
     "codegen": "nitrogen --logLevel=\"error\"",
-    "prepack": "yarn codegen && yarn build"
+    "prepack": "node rust/verify-artifacts.cjs && yarn codegen && yarn build"
   },
   "keywords": [
     "react-native",
@@ -27,14 +27,21 @@
     "src",
     "lib",
     "ios",
-    "android",
+    "android/src/main",
+    "android/build.gradle",
+    "android/CMakeLists.txt",
+    "android/consumer-rules.pro",
+    "android/fix-prefab.gradle",
+    "android/gradle.properties",
     "nitrogen/generated",
+    "rust/artifacts/android",
+    "rust/artifacts/ios/NitroArchiveCore.xcframework",
+    "rust/include/nitro_archive_core.h",
+    "rust/README.md",
     "react-native-nitro-archive.podspec",
     "nitro.json",
     "README.md",
-    "LICENSE",
-    "docs",
-    "SECURITY.md"
+    "LICENSE"
   ],
   "repository": "https://github.com/mcodex/react-native-nitro-archive.git",
   "author": "Mateus Andrade",

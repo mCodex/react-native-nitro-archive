@@ -11,8 +11,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  rust-apple:
+    runs-on: macos-15
+    env:
+      RUSTUP_TOOLCHAIN: 1.100.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Rust Apple archives
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component llvm-tools
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios aarch64-apple-tvos aarch64-apple-tvos-sim
+          bash rust/build-ios.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-apple
+          path: rust/artifacts/ios/
+          if-no-files-found: error
+
+  rust-android:
+    runs-on: ubuntu-24.04
+    env:
+      RUSTUP_TOOLCHAIN: 1.100.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Rust and build Android archives
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          cargo test --manifest-path rust/Cargo.toml --locked
+          sdkmanager --install 'ndk;27.1.12297006'
+          sh rust/build-android.sh "$ANDROID_HOME/ndk/27.1.12297006"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rust-android
+          path: rust/artifacts/android/
+          if-no-files-found: error
+
   release:
     name: Release
+    needs: [rust-apple, rust-android]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -26,6 +63,16 @@ jobs:
           fetch-depth: 0
       - name: Setup Bun.js
         uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v4
+        with:
+          name: rust-apple
+          path: rust/artifacts/ios/
+      - uses: actions/download-artifact@v4
+        with:
+          name: rust-android
+          path: rust/artifacts/android/
+      - name: Verify Rust artifacts
+        run: node rust/verify-artifacts.cjs
       - name: Cache bun dependencies
         uses: actions/cache@v4
         with:
