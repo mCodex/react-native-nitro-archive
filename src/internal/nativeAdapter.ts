@@ -18,9 +18,7 @@ export { mapProgress } from "./mappers/progressMapper";
 export {
 	mapCreationResult,
 	mapExtractionResult,
-	mapIssue,
 	mapValidationResult,
-	mapWarning,
 } from "./mappers/resultMapper";
 
 export function openOutcomeOrThrow(

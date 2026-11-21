@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../theme'
 import type {
   ArchiveReader,
-  ArchiveEntry,
   ArchiveEntryPage,
   ExtractionResult,
   ValidationResult,
@@ -65,7 +64,6 @@ export function OpenArchiveScreen() {
   const [state, setState] = useState<ScreenState>('idle')
   const [archiveUri, setArchiveUri] = useState<string>('')
   const [password, setPassword] = useState<string>('')
-  const [archiveName, setArchiveName] = useState<string>('')
   const [reader, setReader] = useState<ArchiveReader | null>(null)
   const [entryPage, setEntryPage] = useState<ArchiveEntryPage | null>(null)
   const [validationResult, setValidationResult] = useState<ValidationResult | null>(null)
@@ -103,7 +101,6 @@ export function OpenArchiveScreen() {
 
       const isUri = archiveUri.includes('://')
       const source = isUri ? uriSource(archiveUri) : fileSource(archiveUri)
-      setArchiveName(archiveUri.split('/').pop() ?? 'archive.zip')
       setExtractPath(defaultExtractPath(archiveUri))
 
       const archiveReader = await openArchive(source, { password: passwordOption })

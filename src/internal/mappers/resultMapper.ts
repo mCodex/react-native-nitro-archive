@@ -76,5 +76,3 @@ export function mapValidationResult(
 		issues: native.issues.map(mapIssue),
 	};
 }
-
-export { mapIssue, mapWarning };

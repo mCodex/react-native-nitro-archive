@@ -4,7 +4,6 @@ import NitroModules
 final class HybridCreationTask: HybridNativeCreationTaskSpec {
   private let stateMachine = TaskStateMachine()
   private let operationId: String
-  private let engine: ArchiveEngine
   private let request: NativeCreationRequest
   private let useCase: CreateArchiveUseCase
   // ponytail: copy buffers on JS thread before background hop (JSArrayBuffer thread check)
@@ -12,7 +11,6 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
 
   private var progressCallback: ((NativeProgress) -> Void)?
 
-  private var cachedState: String = "idle"
   private var cachedProgress: NativeProgress
 
   var state: String {
@@ -25,7 +23,6 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
 
   init(engine: ArchiveEngine, request: NativeCreationRequest) {
     self.operationId = UUID().uuidString
-    self.engine = engine
     self.request = request
     self.useCase = CreateArchiveUseCase(engine: engine)
     // ponytail: copy ArrayBuffer data while still on JS thread
@@ -50,7 +47,6 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
   func start() throws -> Promise<NativeCreationResult> {
     Promise.async {
       try self.stateMachine.start()
-      self.cachedState = "running"
       let startTime = CFAbsoluteTimeGetCurrent()
 
       do {
@@ -108,7 +104,6 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
 
         self.emitProgress(phase: "finalizing")
         try self.stateMachine.succeed()
-        self.cachedState = "succeeded"
 
         let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
 
@@ -132,18 +127,13 @@ final class HybridCreationTask: HybridNativeCreationTaskSpec {
         )
       } catch {
         self.stateMachine.fail()
-        self.cachedState = "failed"
         throw error
       }
     }
   }
 
   func cancel() throws -> Bool {
-    let didCancel = stateMachine.cancel()
-    if didCancel {
-      cachedState = "cancelled"
-    }
-    return didCancel
+    stateMachine.cancel()
   }
 
   func onProgress(callback: @escaping (NativeProgress) -> Void) throws -> () -> Void {

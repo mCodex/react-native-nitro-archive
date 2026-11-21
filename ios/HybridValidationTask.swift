@@ -10,7 +10,6 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
 
   private var progressCallback: ((NativeProgress) -> Void)?
 
-  private var cachedState: String = "idle"
   private var cachedProgress: NativeProgress
 
   var state: String {
@@ -49,7 +48,6 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
   func start() throws -> Promise<NativeValidationResult> {
     Promise.async {
       try self.stateMachine.start()
-      self.cachedState = "running"
       self.cachedProgress = NativeProgress(operationId: self.operationId, phase: "validating", processedBytes: 0, totalBytes: nil, processedEntries: 0, totalEntries: nil, currentEntry: nil, bytesPerSecond: nil, estimatedSecondsRemaining: nil, percentage: nil)
 
       let entries = self.session.entries
@@ -166,7 +164,6 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
       }
 
       try self.stateMachine.succeed()
-      self.cachedState = "succeeded"
 
       let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
       let isValid = !issues.contains { $0.severity == "error" }
@@ -190,7 +187,6 @@ final class HybridValidationTask: HybridNativeValidationTaskSpec {
   func cancel() throws -> Bool {
     let didCancel = stateMachine.cancel()
     if didCancel {
-      cachedState = "cancelled"
       cachedProgress = NativeProgress(operationId: operationId, phase: "cleaning-up",
                                        processedBytes: 0, totalBytes: nil,
                                        processedEntries: 0, totalEntries: nil,

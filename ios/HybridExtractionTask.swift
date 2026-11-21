@@ -11,7 +11,6 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
   private var progressCallback: ((NativeProgress) -> Void)?
   private var safeOutput: SafeDirectoryOutput?
 
-  private var cachedState: String = "idle"
   private var cachedProgress: NativeProgress
 
   var state: String {
@@ -50,7 +49,6 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
   func start() throws -> Promise<NativeExtractionResult> {
     Promise.async {
       try self.stateMachine.start()
-      self.cachedState = "running"
 
       let destinationPath: String
       if let path = self.request.destinationPath {
@@ -102,7 +100,6 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
         let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000
 
         try self.stateMachine.succeed()
-        self.cachedState = "succeeded"
         self.emitProgress(phase: "finalizing", processedBytes: result.writtenBytes,
                           processedEntries: result.extractedEntries,
                           currentEntry: nil, totalEntries: totalEntriesCount,
@@ -122,7 +119,6 @@ final class HybridExtractionTask: HybridNativeExtractionTaskSpec {
           try? await output.rollback()
         }
         self.stateMachine.fail()
-        self.cachedState = "failed"
         throw error
       }
     }
