@@ -1,56 +1,57 @@
-# Rust ZIP core
+# Rust archive core
 
-## Runtime ownership
+`nitro-archive-core` handles format detection, inspection, entry integrity
+checks, bounded reads, streaming creation and extraction for ZIP/ZIP64, TAR and
+TAR.GZ. The TypeScript facade defines the public contract. Swift and Kotlin
+manage Nitro tasks, OS permissions, document providers and filesystem
+publication. Native workers call Rust through the versioned C ABI.
 
-The public TypeScript facade and Nitrogen contract remain the entry points.
-Swift and Kotlin dispatch ZIP inspection and bounded entry reads to
-`nitro-archive-core` through a versioned C ABI. The Rust library also supports
-seekable readers on the host. Zip4j and SSZipArchive/minizip continue to serve
-creation and extraction.
+## Formats and integrity
 
-iOS stages each open input in a private, session-owned file. Rust seeks through
-that file for inspection and reads. The session deletes its directory on
-release or on a failed open. Android retains the session's input bytes because
-the remaining extraction operation still depends on them. It checks its
-512 MiB input ceiling before reading or copying each source. Both clients
-reject metadata byte counts that exceed JavaScript's safe integer range.
+- ZIP reads and writes Store and Deflate, supports ZIP64, and verifies CRC or
+  WinZip AES authentication as applicable. AES-256 is available for encryption
+  and ZipCrypto requires explicit selection for legacy interoperability.
+- TAR and TAR.GZ support regular files and directories. TAR verifies header
+  checksums. TAR.GZ also verifies the gzip stream trailer before publishing
+  extracted data. TAR.GZ reports zero compressed bytes for individual entries
+  because the gzip stream compresses the archive as a whole.
+- Detection validates archive contents before reporting a match. Inspection
+  bounds input and metadata, checks entry ranges, and rejects ambiguous paths.
+  Extraction rejects links and special files and checks payload limits during
+  streaming. Sparse TAR and split ZIP archives are unsupported.
 
-Native adapters borrow pointers only for the synchronous ABI call on an
-existing worker. Rust owns every ABI result. The caller releases returned
-JSON and entry buffers through the matching versioned functions. Swift can
-transfer the entry buffer directly to a Foundation `Data` deallocator. JNI
-copies bytes into a Java array after releasing the borrowed input arrays.
+## Native integration
 
-## ZIP policy
+Each extraction call writes one selected entry to a private staging descriptor
+borrowed from the platform adapter. Rust duplicates the descriptor, checks its
+initial state, and reads in bounded chunks. On success the adapter publishes the
+verified file through the authorized destination. On failure or cancellation
+the adapter removes staged output according to the task policy. Both adapters
+return structured domain errors and reject loss of integer precision at the
+Nitro boundary.
 
-Inspection bounds the catalog to 10,000 entries and 16 MiB of central
-directory data. It validates the ZIP or ZIP64 footer, local and central
-headers, entry ranges and normalized paths. It rejects ambiguous normalized
-paths, including file and directory names that differ only by a trailing
-slash. Split archives, trailing data and optional ZIP64 extensible data
-records fall outside the supported envelope.
+Runtime calls run off the JavaScript thread. Rust admits at most four concurrent
+streaming operations. Each admitted call processes entries sequentially.
+Selective ZIP extraction only decompresses selected files. TAR.GZ selection
+still decodes the gzip stream to verify its trailer, so extracting several
+entries can repeat work. Android stages an existing in-memory archive for
+extraction. iOS uses a seekable session file. Buffer reads remain size bounded.
 
-Bounded reads select one entry and enforce both its declared and actual
-output size. Store and Deflate are enabled. Rust returns buffered plaintext
-after reading through CRC or WinZip AES authentication. ZipCrypto remains
-available for legacy interoperability and provides no authentication.
-Inspection only verifies archive structure and metadata.
-
-Each read currently walks the bounded catalog. A retained Rust session index
-will be needed before the validation path can verify many entries without
-rechecking metadata. Kotlin and Swift still own permissions, task
-cancellation and extraction storage.
+Local extraction uses descriptor-relative destination operations. Android
+supports the local overwrite policies and writable document URIs for creation.
+iOS extraction currently rejects existing files for all overwrite settings.
+Directory URI extraction remains unsupported on both platforms.
 
 ## Maintainer builds
 
-Use the pinned lockfile and Rust 1.100.0. Install the relevant targets and use
-the repository's Xcode and Android NDK before building each platform.
+Use Rust 1.100.0, the checked-in lockfile, Xcode and Android NDK 27.1.12297006.
 
 ```sh
 cargo test --manifest-path rust/Cargo.toml --locked
 cargo clippy --manifest-path rust/Cargo.toml --locked --all-targets -- -D warnings
 
 rustup component add llvm-tools
+python3 rust/check-coverage.py
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios \
   aarch64-apple-tvos aarch64-apple-tvos-sim
 bash rust/build-ios.sh
@@ -62,25 +63,23 @@ sh rust/build-android.sh "$ANDROID_HOME/ndk/27.1.12297006"
 npm pack
 ```
 
-The npm package contains the Apple XCFramework, the Android static archives
-and the shared C header. CocoaPods and the Android NDK consume these artifacts
-without invoking Cargo. The prepack script requires every supported binary
-slice. Generated artifacts stay outside Git.
+The npm package contains the Apple XCFramework, four Android static archives,
+and the shared C header. CocoaPods and the Android NDK consume those binaries
+without running Cargo. Prepack checks the binary slices, regenerates Nitrogen
+bindings and builds TypeScript. Generated artifacts stay outside Git.
 
-The host fixtures in `rust/tests/fixtures` exercise
-ZIP64, stored and Deflate payloads, CRC, ZipCrypto and WinZip AES. The existing
-release requirements also cover native device conformance, coverage per layer
-and scenario evidence. TAR, TAR.GZ, Rust creation and Rust extraction remain
-future migration steps.
+## Verification scope
 
-## Verification
+The Rust suite ran 36 tests and covered 1,247 of 1,312 executable lines
+(95.05%). Every production Rust file exceeded 90%. The TypeScript suite ran
+165 tests and covered 259 of 273 executable lines (94.87%). See
+[fixture coverage](tests/fixtures/README.md) for the mapped V7 test cases.
 
-The host suite passed 14 tests. LLVM measured 480 of 515 executable lines
-covered across the core. The FFI, footer and ZIP implementation measured
-98.46%, 91.85% and 91.20%, respectively. These figures cover host Rust code.
+Native smoke tests exercised ZIP, TAR and TAR.GZ on an Android arm64 API 37
+emulator with 16 KiB pages and on an iOS 27 arm64 simulator. Both also exercised
+cancellation and destination safety. The Apple simulator app built in Debug and
+Release. Android linked all four JNI ABIs with 16 KiB ELF alignment.
 
-The arm64 Android example release APK passed R8 and 16 KiB ZIP and ELF
-alignment checks. The Rust JNI bridge linked for all four Android ABIs.
-The iOS example release build linked the final XCFramework for both
-simulator architectures. Minimal ABI linkage also passed for the iOS and
-tvOS device slices and the tvOS simulator slice.
+The full V7 release matrix still requires physical-device and document provider
+testing, Kotlin and Swift line coverage, a package install in an Expo development
+build, and throughput and memory measurements.

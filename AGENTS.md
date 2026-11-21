@@ -7,11 +7,11 @@ for inspecting, validating, reading, creating and extracting archives through
 Nitro Modules. Write source, comments, tests, JSDoc and project documentation
 in English.
 
-The shipping implementation is ZIP-focused. Rust owns inspection and bounded
-entry reads through the Swift and Kotlin adapters. SSZipArchive/minizip and
-Zip4j still serve archive creation and extraction. The V7 migration targets
-one Rust archive core for Android and iOS. Keep existing operations working
-during migration.
+Rust owns format detection, structural inspection, entry integrity checks,
+bounded reads, creation and extraction for ZIP/ZIP64, TAR and TAR.GZ. Swift
+and Kotlin own Nitro integration, task lifecycle, filesystem publication and
+platform document access. See `rust/README.md` for the tested scope and the V7
+evidence still required for release.
 
 ## Public contract and integration
 
@@ -51,6 +51,9 @@ during migration.
 - Prefer bounded, seekable reads for ZIP, sequential decoding for compressed
   TAR and bounded spooling for non-seekable sources. Use the same path,
   integrity, quota and staging policies regardless of the adapter.
+- Keep archive payloads on the native worker. Hand the Rust extractor an empty
+  private staging file descriptor. Duplicate borrowed descriptors in Rust and
+  publish staged files only after integrity verification succeeds.
 - Prefer a bounded sequential implementation as the measured baseline. Use a
   shared lazy Tokio runtime for job orchestration and bounded Rayon workers
   for CPU work only where measured comparisons demonstrate a benefit. Enforce

@@ -1,6 +1,6 @@
 # react-native-nitro-archive
 
-ZIP creation, inspection, bounded reads and extraction for React Native, powered by Nitro Modules. Rust handles ZIP inspection and bounded entry reads through Swift and Kotlin adapters. Binary inputs use paths, URIs or `ArrayBuffer`.
+Create, inspect, validate, read and extract ZIP/ZIP64, TAR and TAR.GZ archives in React Native. Nitro Modules connects TypeScript to a shared Rust core on Android and iOS. Binary inputs use paths, URIs or `ArrayBuffer`.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -84,11 +84,13 @@ async function zipReport(reportPath: string, zipPath: string) {
 
 Use `directoryEntry()` for directories and `bufferEntry()` for small binary contents. Existing-output policy defaults to `error`; check `atomicWriteApplied` in results before relying on atomic replacement.
 
+ZIP is the default creation format. Set `format: 'tar'` or `format: 'tar.gz'` to create a TAR archive. Use a matching filename extension for compatibility with other tools.
+
 ## 🔒 Handle untrusted input
 
 Keep restrictive extraction limits. The contract defaults are 10,000 entries, 2 GiB total output, 512 MiB per entry, compression ratio 1,000, depth 32 and path length 1,024 UTF-8 bytes. Validation does not reserve disk space or make a later extraction immune to changes in storage or access.
 
-ZIP is the only exposed archive format. Encryption identifiers in TypeScript do not establish interoperability: consult `getArchiveCapabilities()` and verify both platforms before accepting password-protected archives. Passwords do not protect against malicious archive contents.
+ZIP supports WinZip AES-256 and explicit ZipCrypto for legacy compatibility. TAR and TAR.GZ support unencrypted entries. Consult `getArchiveCapabilities()` for the capabilities of the installed native build.
 
 ```ts
 import { isArchiveError } from 'react-native-nitro-archive'
