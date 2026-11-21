@@ -1,11 +1,11 @@
-use std::ffi::{CStr, CString, c_char};
+use std::ffi::{CStr, CString, c_char, c_void};
 use std::fs::File;
 use std::io::Cursor;
 use std::panic::catch_unwind;
 use std::ptr;
 use std::slice;
 
-use crate::{ArchiveError, Inspection, inspect};
+use crate::{ArchiveError, inspect, operations};
 
 const MAX_INPUT_BYTES: usize = 512 * 1024 * 1024;
 
@@ -18,7 +18,7 @@ const MAX_INPUT_BYTES: usize = 512 * 1024 * 1024;
 /// The returned allocation must be released exactly once with the matching free function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nitro_archive_inspect_v1(bytes: *const u8, length: usize) -> *mut c_char {
-    inspection_json(|| {
+    response_json(|| {
         // SAFETY: The caller retains the initialized, immutable range until return.
         let input = unsafe { borrow_bytes(bytes, length, MAX_INPUT_BYTES) }?;
         inspect(Cursor::new(input))
@@ -33,15 +33,15 @@ pub unsafe extern "C" fn nitro_archive_inspect_v1(bytes: *const u8, length: usiz
 /// The caller must have authority to open the file and preserve a stable snapshot during inspection.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nitro_archive_inspect_file_v1(path: *const c_char) -> *mut c_char {
-    inspection_json(|| {
+    response_json(|| {
         // SAFETY: The caller supplies a live, NUL-terminated immutable C string for this call.
         let path = unsafe { borrow_path(path) }?;
         inspect(File::open(path)?)
     })
 }
 
-fn inspection_json(
-    operation: impl FnOnce() -> Result<Inspection, ArchiveError> + std::panic::UnwindSafe,
+fn response_json<T: serde::Serialize>(
+    operation: impl FnOnce() -> Result<T, ArchiveError> + std::panic::UnwindSafe,
 ) -> *mut c_char {
     let result = catch_unwind(|| {
         let json = match operation() {
@@ -57,12 +57,95 @@ fn inspection_json(
     }
 }
 
-/// Release an inspection result from this version of the ABI.
+type Progress = unsafe extern "C" fn(*mut c_void, u64, u64) -> i32;
+
+/// Run one create or extract operation against a host-owned private output.
+///
+/// # Safety
+///
+/// The request must be a live NUL-terminated string. Password bytes and
+/// callback context stay valid for the duration of this synchronous call.
+/// The host holds exclusive use of its empty staging descriptor until return
+/// and must publish that output only after a successful JSON result.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nitro_archive_operation_v1(
+    request_json: *const c_char,
+    password: *const u8,
+    password_length: usize,
+    progress: Option<Progress>,
+    context: *mut c_void,
+) -> *mut c_char {
+    response_json(|| {
+        // SAFETY: The host owns the immutable string for this call.
+        let request = unsafe { borrow_path(request_json) }?;
+        if request.len() > 32 * 1024 * 1024 {
+            return Err(ArchiveError::ArchiveTooLarge);
+        }
+        let operation = serde_json::from_str(request).map_err(|_| ArchiveError::InvalidArgument)?;
+        // SAFETY: The host owns the immutable password range for this call.
+        let password = unsafe { borrow_bytes(password, password_length, MAX_PASSWORD_BYTES) }?;
+        operations::run(operation, password, |bytes, entries| {
+            if let Some(progress) = progress {
+                // SAFETY: The callback and context are retained by the host, and no Rust lock
+                // is held across this call. The callback is invoked on the original thread.
+                if unsafe { progress(context, bytes, entries) } != 0 {
+                    return Err(ArchiveError::OperationCancelled);
+                }
+            }
+            Ok(())
+        })
+    })
+}
+
+/// Detect an archive from a bounded host buffer.
+///
+/// # Safety
+///
+/// For nonzero in-bounds lengths the host keeps the input live and immutable until return.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nitro_archive_detect_v1(bytes: *const u8, length: usize) -> *mut c_char {
+    response_json(|| {
+        // SAFETY: The host owns the immutable input buffer until this function returns.
+        let bytes = unsafe { borrow_bytes(bytes, length, MAX_INPUT_BYTES) }?;
+        detect_format(Cursor::new(bytes))
+    })
+}
+
+/// Detect an archive through a seekable local file.
+///
+/// # Safety
+///
+/// The host owns a live NUL-terminated UTF-8 path and has authority to open the file.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn nitro_archive_detect_file_v1(path: *const c_char) -> *mut c_char {
+    response_json(|| {
+        // SAFETY: The host owns the immutable path until this function returns.
+        let path = unsafe { borrow_path(path) }?;
+        detect_format(File::open(path)?)
+    })
+}
+
+fn detect_format(
+    reader: impl std::io::Read + std::io::Seek,
+) -> Result<serde_json::Value, ArchiveError> {
+    let format = match inspect(reader) {
+        Ok(inspection) => Some(inspection.format),
+        Err(
+            ArchiveError::InvalidArchive
+            | ArchiveError::TruncatedArchive
+            | ArchiveError::UnsupportedFormat,
+        ) => None,
+        Err(error) => return Err(error),
+    };
+    Ok(serde_json::json!({ "format": format }))
+}
+
+/// Release a JSON result from this version of the ABI.
 ///
 /// # Safety
 ///
 /// The pointer must be null or an outstanding allocation from
-/// an inspection function in this ABI. The host must finish reading it before freeing.
+/// a JSON-returning function in this ABI. The host must finish reading it before freeing.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nitro_archive_free_json_v1(json: *mut c_char) {
     if !json.is_null() {

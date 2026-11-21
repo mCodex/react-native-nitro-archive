@@ -1,4 +1,6 @@
-# ZIP interoperability fixtures
+# Archive interoperability fixtures
+
+## ZIP
 
 These six archives were produced outside the Rust crate and total 1,321 bytes.
 The Rust tests embed the original bytes so test runs need no fixture-generation
@@ -24,3 +26,22 @@ these fixtures through the Rust API. The host tests cover portions of cases
 (releasing returned JSON with its owning allocator).
 These checks provide host evidence. Platform integration and the remaining
 scenarios for each case need separate coverage.
+
+## TAR and TAR.GZ
+
+| Fixture | Producer | Contents |
+| --- | --- | --- |
+| `gnu-long.tar` | CPython `tarfile` with `GNU_FORMAT` | Long filename, stored text and a directory |
+| `pax.tar.gz` | CPython `tarfile` with `PAX_FORMAT` and `gzip.compress` | A PAX path and size override, stored text and a directory |
+
+The TAR fixtures total 3,794 bytes. Both have the two zero blocks required at
+the end of TAR content and were independently listed with `bsdtar`.
+
+Host tests cover parts of `TAR-001` (GNU and PAX path overrides), `TAR-002`
+(out-of-range numeric fields), `TAR-003` (GNU and PAX sparse rejection),
+`TAR-004` (link rejection before writing), `TAR-006` (header checksum and
+truncation), `TAR-007` (zero padding), `TAR-009` (stream budget), and
+`TAR-010` (duplicate destinations). Compressed wrapper checks exercise
+`TGZ-001` (aggregate expansion ratio), `TGZ-002` (invalid GZIP trailer and
+suffix), `TGZ-003` (shared TAR path rules), `TGZ-004` (cooperative
+cancellation checkpoints), and `TGZ-006` (concatenated GZIP rejection).

@@ -14,6 +14,7 @@ const PASSWORD: &[u8] = b"archive-test-password";
 unsafe extern "C" {
     fn nitro_archive_inspect_v1(bytes: *const u8, length: usize) -> *mut c_char;
     fn nitro_archive_inspect_file_v1(path: *const c_char) -> *mut c_char;
+    fn nitro_archive_detect_v1(bytes: *const u8, length: usize) -> *mut c_char;
     fn nitro_archive_free_json_v1(json: *mut c_char);
     fn nitro_archive_read_entry_v1(
         bytes: *const u8,
@@ -53,7 +54,7 @@ fn inspects_archives_created_by_cpython() {
     assert_eq!(stored.compression_method, "store");
     assert_eq!(stored.compressed_size, 12);
     assert_eq!(stored.uncompressed_size, 12);
-    assert_eq!(stored.crc32, 0x89d3ee91);
+    assert_eq!(stored.crc32, Some(0x89d3ee91));
 
     assert_eq!(archive.entries[1].path, "files/");
     assert_eq!(archive.entries[1].kind, "directory");
@@ -62,7 +63,7 @@ fn inspects_archives_created_by_cpython() {
     assert_eq!(deflated.path, "files/café.txt");
     assert_eq!(deflated.compression_method, "deflate");
     assert_eq!(deflated.uncompressed_size, 1024);
-    assert_eq!(deflated.crc32, 0x3017bf58);
+    assert_eq!(deflated.crc32, Some(0x3017bf58));
 }
 
 #[test]
@@ -197,6 +198,26 @@ fn c_abi_round_trips_inspection_and_reports_invalid_arguments() {
     assert_eq!(result["entries"][2]["path"], "files/café.txt");
     assert_eq!(result["totalUncompressedSize"], 1036);
     assert_eq!(inspect_over_c_abi(None)["error"], "E_INVALID_ARGUMENT");
+}
+
+#[test]
+fn detects_real_containers_and_leaves_arbitrary_input_unknown() {
+    for (bytes, expected) in [
+        (EMPTY, serde_json::json!("zip")),
+        (
+            include_bytes!("fixtures/gnu-long.tar"),
+            serde_json::json!("tar"),
+        ),
+        (
+            include_bytes!("fixtures/pax.tar.gz"),
+            serde_json::json!("tar.gz"),
+        ),
+        (b"arbitrary bytes".as_slice(), serde_json::Value::Null),
+    ] {
+        // SAFETY: The test fixture is immutable and live throughout the call.
+        let result = parse_json(unsafe { nitro_archive_detect_v1(bytes.as_ptr(), bytes.len()) });
+        assert_eq!(result["format"], expected);
+    }
 }
 
 #[test]

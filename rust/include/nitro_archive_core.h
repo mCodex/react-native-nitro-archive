@@ -25,6 +25,23 @@ char *NITRO_ARCHIVE_NULLABLE nitro_archive_inspect_file_v1(
     const char *NITRO_ARCHIVE_NONNULL path);
 void nitro_archive_free_json_v1(char *NITRO_ARCHIVE_NULLABLE json);
 
+typedef int32_t (*NitroArchiveProgress)(
+    void *NITRO_ARCHIVE_NULLABLE context, uint64_t processed_bytes,
+    uint64_t processed_entries);
+
+/* The host owns a private empty output descriptor and all borrowed arguments.
+ * Keep them live through return and publish the output only after success.
+ * The optional synchronous callback returns nonzero to cancel. */
+char *NITRO_ARCHIVE_NULLABLE nitro_archive_operation_v1(
+    const char *NITRO_ARCHIVE_NONNULL request_json,
+    const uint8_t *NITRO_ARCHIVE_NULLABLE password, size_t password_length,
+    NitroArchiveProgress NITRO_ARCHIVE_NULLABLE progress,
+    void *NITRO_ARCHIVE_NULLABLE context);
+char *NITRO_ARCHIVE_NULLABLE nitro_archive_detect_v1(
+    const uint8_t *NITRO_ARCHIVE_NULLABLE bytes, size_t length);
+char *NITRO_ARCHIVE_NULLABLE nitro_archive_detect_file_v1(
+    const char *NITRO_ARCHIVE_NONNULL path);
+
 typedef struct NitroArchiveBytesResult {
   uint8_t *NITRO_ARCHIVE_NULLABLE bytes;
   size_t length;
