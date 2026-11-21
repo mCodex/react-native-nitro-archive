@@ -23,6 +23,13 @@ unsafe extern "C" {
         password_length: usize,
         limit: u64,
     ) -> ReadResult;
+    fn nitro_archive_read_file_entry_v1(
+        archive_path: *const c_char,
+        path: *const c_char,
+        password: *const u8,
+        password_length: usize,
+        limit: u64,
+    ) -> ReadResult;
     fn nitro_archive_free_bytes_v1(result: ReadResult);
 }
 
@@ -203,6 +210,17 @@ fn c_abi_supports_seekable_paths_and_verified_entry_buffers() {
     let catalog = parse_json(unsafe { nitro_archive_inspect_file_v1(path.as_ptr()) });
     assert_eq!(catalog["entries"][0]["path"], "zip64.txt");
 
+    // SAFETY: Both paths are live C strings and the password is absent.
+    let result = unsafe {
+        nitro_archive_read_file_entry_v1(
+            path.as_ptr(),
+            c"zip64.txt".as_ptr(),
+            std::ptr::null(),
+            0,
+            14,
+        )
+    };
+    assert_eq!(copy_read_result(result).unwrap(), b"ZIP64 payload\n");
     assert_eq!(
         read_over_c_abi(c"files/café.txt", 1024).unwrap(),
         b"compressed line\n".repeat(64)
@@ -212,6 +230,56 @@ fn c_abi_supports_seekable_paths_and_verified_entry_buffers() {
         read_over_c_abi(c"stored.txt", 11).unwrap_err(),
         "E_BUFFER_LIMIT_EXCEEDED"
     );
+}
+
+#[test]
+fn c_abi_rejects_invalid_paths_and_excessive_buffer_lengths() {
+    // SAFETY: A zero-length input needs no allocation or live buffer.
+    let short = unsafe { nitro_archive_inspect_v1(std::ptr::null(), 0) };
+    assert_eq!(parse_json(short)["error"], "E_TRUNCATED_ARCHIVE");
+    // SAFETY: The ABI rejects this count before dereferencing any input bytes.
+    let oversized = unsafe { nitro_archive_inspect_v1(std::ptr::null(), usize::MAX) };
+    assert_eq!(parse_json(oversized)["error"], "E_ARCHIVE_TOO_LARGE");
+
+    let bad_encoding = c"\xff";
+    let missing = CString::new(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/missing.zip")).unwrap();
+    for (path, expected) in [
+        (bad_encoding.as_ptr(), "E_INVALID_ARGUMENT"),
+        (std::ptr::null(), "E_INVALID_ARGUMENT"),
+        (missing.as_ptr(), "E_IO"),
+    ] {
+        // SAFETY: The non-null paths are live C strings; null exercises argument validation.
+        let result = unsafe { nitro_archive_inspect_file_v1(path) };
+        assert_eq!(parse_json(result)["error"], expected);
+    }
+}
+
+#[test]
+fn reports_split_archives_and_unavailable_compression() {
+    let mut split = EMPTY.to_vec();
+    split[4] = 1;
+    assert_eq!(
+        inspect(Cursor::new(split)).unwrap_err().code(),
+        "E_UNSUPPORTED_FORMAT"
+    );
+
+    let central = INTEROP
+        .windows(4)
+        .position(|bytes| bytes == b"PK\x01\x02")
+        .unwrap();
+    for (method, name) in [(12, "bzip2"), (14, "lzma"), (93, "zstd"), (11, "unknown")] {
+        let mut unsupported = INTEROP.to_vec();
+        unsupported[8] = method;
+        unsupported[central + 10] = method;
+        let archive = inspect(Cursor::new(&unsupported)).unwrap();
+        assert_eq!(archive.entries[0].compression_method, name);
+        assert_eq!(
+            read_entry(Cursor::new(unsupported), 0, 12, None)
+                .unwrap_err()
+                .to_string(),
+            "E_UNSUPPORTED_COMPRESSION"
+        );
+    }
 }
 
 #[test]
@@ -238,6 +306,57 @@ fn rejects_out_of_budget_directory_metadata_and_ambiguous_names() {
         let archive = writer.finish().unwrap();
         assert_eq!(inspect(archive).unwrap_err().code(), code);
     }
+}
+
+#[test]
+fn checks_local_and_central_header_agreement_and_directory_bounds() {
+    let central = INTEROP
+        .windows(4)
+        .position(|bytes| bytes == b"PK\x01\x02")
+        .unwrap();
+    let mut inconsistent = INTEROP.to_vec();
+    inconsistent[central + 46] = b'S';
+    assert_eq!(
+        inspect(Cursor::new(inconsistent)).unwrap_err().code(),
+        "E_INVALID_ARCHIVE"
+    );
+
+    let mut unindexed = INTEROP.to_vec();
+    let end = unindexed
+        .windows(4)
+        .rposition(|bytes| bytes == b"PK\x05\x06")
+        .unwrap();
+    unindexed[end + 8] = 2;
+    unindexed[end + 10] = 2;
+    assert_eq!(
+        inspect(Cursor::new(unindexed)).unwrap_err().code(),
+        "E_INVALID_ARCHIVE"
+    );
+}
+
+#[test]
+fn bounds_path_length_and_depth_and_preserves_link_metadata() {
+    for path in ["x".repeat(1025), "a/".repeat(33)] {
+        let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        writer
+            .start_file(path, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        assert_eq!(
+            inspect(writer.finish().unwrap()).unwrap_err().code(),
+            "E_ARCHIVE_TOO_LARGE"
+        );
+    }
+
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    writer
+        .add_symlink(
+            "alias",
+            "data.txt",
+            zip::write::SimpleFileOptions::default(),
+        )
+        .unwrap();
+    let catalog = inspect(writer.finish().unwrap()).unwrap();
+    assert_eq!(catalog.entries[0].kind, "symlink");
 }
 
 fn inspect_over_c_abi(bytes: Option<&[u8]>) -> serde_json::Value {
@@ -273,6 +392,10 @@ fn read_over_c_abi(path: &CStr, limit: u64) -> Result<Vec<u8>, String> {
             limit,
         )
     };
+    copy_read_result(result)
+}
+
+fn copy_read_result(result: ReadResult) -> Result<Vec<u8>, String> {
     // SAFETY: The result owns the returned pointers. Copy their contents before
     // releasing exactly once with the allocator that created them.
     unsafe {

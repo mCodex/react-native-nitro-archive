@@ -19,18 +19,9 @@ const MAX_INPUT_BYTES: usize = 512 * 1024 * 1024;
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nitro_archive_inspect_v1(bytes: *const u8, length: usize) -> *mut c_char {
     inspection_json(|| {
-        if length > MAX_INPUT_BYTES {
-            Err(ArchiveError::ArchiveTooLarge)
-        } else if length == 0 {
-            inspect(Cursor::new(&[]))
-        } else if bytes.is_null() {
-            Err(ArchiveError::InvalidArgument)
-        } else {
-            // SAFETY: The caller owns a live, initialized and immutable range for
-            // the call. u8 has alignment one and the checked cap is below isize::MAX.
-            let input = unsafe { slice::from_raw_parts(bytes, length) };
-            inspect(Cursor::new(input))
-        }
+        // SAFETY: The caller retains the initialized, immutable range until return.
+        let input = unsafe { borrow_bytes(bytes, length, MAX_INPUT_BYTES) }?;
+        inspect(Cursor::new(input))
     })
 }
 
@@ -43,13 +34,8 @@ pub unsafe extern "C" fn nitro_archive_inspect_v1(bytes: *const u8, length: usiz
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn nitro_archive_inspect_file_v1(path: *const c_char) -> *mut c_char {
     inspection_json(|| {
-        if path.is_null() {
-            return Err(ArchiveError::InvalidArgument);
-        }
         // SAFETY: The caller supplies a live, NUL-terminated immutable C string for this call.
-        let path = unsafe { CStr::from_ptr(path) }
-            .to_str()
-            .map_err(|_| ArchiveError::InvalidArgument)?;
+        let path = unsafe { borrow_path(path) }?;
         inspect(File::open(path)?)
     })
 }

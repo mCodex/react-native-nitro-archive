@@ -147,6 +147,12 @@ fn read_entry_matching(
     if entry.encrypted() && password.is_none_or(<[u8]>::is_empty) {
         return Err(ArchiveError::PasswordRequired);
     }
+    if !matches!(
+        entry.compression(),
+        zip::CompressionMethod::Stored | zip::CompressionMethod::Deflated
+    ) {
+        return Err(ArchiveError::UnsupportedCompression);
+    }
 
     let options = ZipReadOptions::new().password(password);
     let files = archive.files()?;

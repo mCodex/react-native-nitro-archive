@@ -15,6 +15,9 @@ pub(crate) struct Directory {
 
 pub(crate) fn inspect_footer(reader: &mut (impl Read + Seek)) -> Result<Directory, ArchiveError> {
     let length = reader.seek(SeekFrom::End(0))?;
+    if length < END_RECORD_BYTES as u64 {
+        return Err(ArchiveError::TruncatedArchive);
+    }
     let tail_length = length.min((END_RECORD_BYTES + usize::from(u16::MAX)) as u64) as usize;
     let tail_start = length - tail_length as u64;
     let mut tail = vec![0; tail_length];
