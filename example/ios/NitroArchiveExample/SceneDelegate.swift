@@ -29,9 +29,14 @@ class SceneDelegate: RCTDefaultReactNativeFactoryDelegate, UIWindowSceneDelegate
     reactNativeFactory?.devMenuConfiguration = devMenuConfiguration
     #endif
 
+    let fileManager = FileManager.default
+    let directory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+      ?? fileManager.temporaryDirectory
+
     reactNativeFactory?.startReactNative(
       withModuleName: "NitroArchiveExample",
       in: window,
+      initialProperties: ["exampleDirectory": directory.path],
       connectionOptions: connectionOptions
     )
   }
