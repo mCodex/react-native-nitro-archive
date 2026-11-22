@@ -4,15 +4,17 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
+  Keyboard,
   TextInput,
   ActivityIndicator,
   Alert,
   useWindowDimensions,
 } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ArchiveFormScrollView } from '../components/ArchiveFormScrollView'
+import { useExampleDirectory } from '../exampleDirectory'
 import { colors } from '../theme'
 import type {
+  ArchiveFormat,
   ArchiveTask,
   ArchiveProgress,
   CreationResult,
@@ -44,12 +46,22 @@ function formatBytes(bytes: bigint | number): string {
   return `${(Number(b) / 1073741824).toFixed(1)} GB`
 }
 
+const formatDescriptions: Record<ArchiveFormat, string> = {
+  zip: 'Compress individual entries and optionally protect them with a password.',
+  tar: 'Bundle entries without compression.',
+  'tar.gz': 'Compress the entire TAR archive with gzip.',
+}
+
 const compressionMethods: ZipCompressionMethod[] = ['store', 'deflate']
 const compressionProfiles: CompressionProfile[] = ['fastest', 'balanced', 'smallest']
 const encryptionMethods: ZipEncryptionMethod[] = ['none', 'zip-crypto', 'aes-256']
 
 function labelFor(value: string): string {
   switch (value) {
+    case 'zip':
+    case 'tar':
+    case 'tar.gz':
+      return value.toUpperCase()
     case 'zip-crypto':
       return 'ZipCrypto'
     case 'aes-256':
@@ -77,6 +89,8 @@ function OptionGrid<T extends string>({
         return (
           <TouchableOpacity
             key={item}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: selected }}
             style={[styles.optionCard, selected && styles.optionCardSelected]}
             onPress={() => onChange(item)}
             activeOpacity={0.78}
@@ -95,9 +109,12 @@ function OptionGrid<T extends string>({
 }
 
 export function CreateArchiveScreen() {
-  const insets = useSafeAreaInsets()
+  const directory = useExampleDirectory()
   const { width } = useWindowDimensions()
-  const [destinationPath, setDestinationPath] = useState('')
+  const [format, setFormat] = useState<ArchiveFormat>('zip')
+  const [customPath, setCustomPath] = useState<string | null>(null)
+  const [sampleId, setSampleId] = useState(Date.now)
+  const destinationPath = customPath ?? `${directory}/sample-${sampleId}.${format}`
   const [bufferFileName, setBufferFileName] = useState('hello.txt')
   const [bufferContent, setBufferContent] = useState('Hello from Nitro Archive!')
   const [selectedCompression, setSelectedCompression] = useState<ZipCompressionMethod>('deflate')
@@ -110,12 +127,22 @@ export function CreateArchiveScreen() {
   const [error, setError] = useState('')
   const taskRef = useRef<ArchiveTask<CreationResult> | null>(null)
 
+  function changeFormat(next: ArchiveFormat) {
+    if (state === 'creating' || next === format) return
+    setFormat(next)
+    setResult(null)
+    setError('')
+    setProgress(null)
+    setState('idle')
+  }
+
   const handleCreate = useCallback(async () => {
+    Keyboard.dismiss()
     if (!destinationPath.trim()) {
       Alert.alert('Missing Path', 'Enter an absolute destination path.')
       return
     }
-    if (selectedEncryption !== 'none' && !password.trim()) {
+    if (format === 'zip' && selectedEncryption !== 'none' && !password.trim()) {
       Alert.alert('Missing Password', 'Enter a password or choose no encryption.')
       return
     }
@@ -129,26 +156,23 @@ export function CreateArchiveScreen() {
       const isUri = destinationPath.includes('://')
       const destination = isUri
         ? uriDestination(destinationPath)
-        : fileDestination(
-            destinationPath.startsWith('/')
-              ? destinationPath
-              : `/${destinationPath}`,
-          )
+        : fileDestination(destinationPath.trim())
 
       const textBuffer = stringToArrayBuffer(bufferContent)
 
       const options = {
+        format,
         destination,
         entries: [
           bufferEntry(textBuffer, bufferFileName, {
-            compressionMethod: selectedCompression,
+            compressionMethod: format === 'zip' ? selectedCompression : undefined,
           }),
         ],
-        compression: {
+        compression: format === 'tar' ? undefined : {
           profile: selectedProfile,
           storeAlreadyCompressed: true,
         },
-        encryption: selectedEncryption === 'none' ? undefined : {
+        encryption: format !== 'zip' || selectedEncryption === 'none' ? undefined : {
           method: selectedEncryption,
           password,
         },
@@ -176,6 +200,7 @@ export function CreateArchiveScreen() {
       setState('error')
     }
   }, [
+    format,
     destinationPath,
     bufferFileName,
     bufferContent,
@@ -186,19 +211,22 @@ export function CreateArchiveScreen() {
   ])
 
   return (
-    <ScrollView
-      style={[styles.container, { paddingTop: insets.top }]}
+    <ArchiveFormScrollView
+      style={styles.container}
       contentContainerStyle={[
         styles.content,
         width >= 720 && styles.contentWide,
       ]}
-      keyboardShouldPersistTaps="handled"
     >
-      <View style={styles.hero}>
-        <Text style={styles.eyebrow}>ZIP builder</Text>
-        <Text style={styles.title}>Create archive</Text>
-        <Text style={styles.subtitle}>
-          Package one buffer entry, choose compression, and test encrypted ZIP creation.
+      <View pointerEvents={state === 'creating' ? 'none' : 'auto'} style={styles.panel}>
+        <Text style={styles.sectionTitle}>Archive format</Text>
+        <OptionGrid
+          value={format}
+          values={['zip', 'tar', 'tar.gz']}
+          onChange={changeFormat}
+        />
+        <Text style={styles.helperText}>
+          {formatDescriptions[format]}
         </Text>
       </View>
 
@@ -207,10 +235,10 @@ export function CreateArchiveScreen() {
         <Text style={styles.inputLabel}>Archive path or URI</Text>
         <TextInput
           style={styles.input}
-          placeholder="/tmp/my-archive.zip"
+          placeholder={`/path/to/archive.${format}`}
           placeholderTextColor={colors.placeholder}
           value={destinationPath}
-          onChangeText={setDestinationPath}
+          onChangeText={setCustomPath}
           autoCapitalize="none"
           autoCorrect={false}
         />
@@ -241,50 +269,58 @@ export function CreateArchiveScreen() {
         />
       </View>
 
-      <View style={styles.panel}>
-        <Text style={styles.sectionTitle}>Compression</Text>
-        <Text style={styles.inputLabel}>Method</Text>
-        <OptionGrid
-          value={selectedCompression}
-          values={compressionMethods}
-          onChange={setSelectedCompression}
-        />
+      {format !== 'tar' && (
+        <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>Compression</Text>
+          {format === 'zip' && (
+            <>
+              <Text style={styles.inputLabel}>Method</Text>
+              <OptionGrid
+                value={selectedCompression}
+                values={compressionMethods}
+                onChange={setSelectedCompression}
+              />
+            </>
+          )}
+          {(format === 'tar.gz' || selectedCompression === 'deflate') && (
+            <>
+              <Text style={styles.inputLabel}>Profile</Text>
+              <OptionGrid
+                value={selectedProfile}
+                values={compressionProfiles}
+                onChange={setSelectedProfile}
+              />
+            </>
+          )}
+        </View>
+      )}
 
-        <Text style={styles.inputLabel}>Profile</Text>
-        <OptionGrid
-          value={selectedProfile}
-          values={compressionProfiles}
-          onChange={setSelectedProfile}
-        />
-      </View>
-
-      <View style={styles.panel}>
-        <Text style={styles.sectionTitle}>Password</Text>
-        <Text style={styles.inputLabel}>Encryption</Text>
-        <OptionGrid
-          value={selectedEncryption}
-          values={encryptionMethods}
-          onChange={setSelectedEncryption}
-        />
-        {selectedEncryption !== 'none' ? (
-          <>
-            <Text style={styles.inputLabel}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Archive password"
-              placeholderTextColor={colors.placeholder}
-              value={password}
-              onChangeText={setPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              secureTextEntry
-            />
-          </>
-        ) : null}
-        <Text style={styles.helperText}>
-          Encrypted archives still use the same size, path, and bomb limits.
-        </Text>
-      </View>
+      {format === 'zip' && (
+        <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>Encryption</Text>
+          <OptionGrid
+            value={selectedEncryption}
+            values={encryptionMethods}
+            onChange={setSelectedEncryption}
+          />
+          {selectedEncryption !== 'none' && (
+            <>
+              <Text style={styles.inputLabel}>Password</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Archive password"
+                placeholderTextColor={colors.placeholder}
+                value={password}
+                onChangeText={setPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                secureTextEntry
+              />
+            </>
+          )}
+        </View>
+      )}
 
       {progress ? (
         <View style={styles.progressSection}>
@@ -305,7 +341,10 @@ export function CreateArchiveScreen() {
 
       {result ? (
         <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>Archive Created</Text>
+          <Text style={styles.resultTitle}>{format.toUpperCase()} archive created</Text>
+          <Text selectable style={styles.resultText}>
+            {result.output.kind === 'file' ? result.output.path : result.output.uri}
+          </Text>
           <Text style={styles.resultText}>
             Entries: {result.entryCount}
           </Text>
@@ -355,6 +394,7 @@ export function CreateArchiveScreen() {
         <TouchableOpacity
           style={styles.resetButton}
           onPress={() => {
+            setSampleId(Date.now())
             setState('idle')
             setResult(null)
             setProgress(null)
@@ -364,7 +404,7 @@ export function CreateArchiveScreen() {
           <Text style={styles.resetButtonText}>Create Another</Text>
         </TouchableOpacity>
       ) : null}
-    </ScrollView>
+    </ArchiveFormScrollView>
   )
 }
 
@@ -381,29 +421,6 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 720,
     alignSelf: 'center',
-  },
-  hero: {
-    paddingTop: 8,
-    paddingBottom: 18,
-  },
-  eyebrow: {
-    color: colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0,
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  title: {
-    color: colors.text,
-    fontSize: 30,
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: colors.textMuted,
-    fontSize: 15,
-    lineHeight: 21,
   },
   panel: {
     backgroundColor: colors.surface,
@@ -455,7 +472,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    minWidth: 132,
+    minWidth: 88,
     flexGrow: 1,
     flexShrink: 1,
   },
@@ -471,7 +488,7 @@ const styles = StyleSheet.create({
     borderColor: colors.placeholder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 5,
   },
   optionDotSelected: {
     borderColor: colors.primary,
@@ -483,7 +500,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   optionLabel: {
-    flex: 1,
+    flexShrink: 1,
     fontSize: 14,
     color: colors.textSecondary,
     fontWeight: '700',

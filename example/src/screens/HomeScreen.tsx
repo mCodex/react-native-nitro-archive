@@ -16,19 +16,19 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Home'>
 const buttons = [
   {
     title: 'Open Archive',
-    subtitle: 'Inspect, list, extract, and validate ZIP archives',
+    subtitle: 'Inspect and extract ZIP, TAR, and TAR.GZ archives',
     screen: 'OpenArchive' as const,
     icon: '📂',
   },
   {
     title: 'Create Archive',
-    subtitle: 'Build ZIP archives from files, buffers, and directories',
+    subtitle: 'Build ZIP, TAR, and TAR.GZ archives',
     screen: 'CreateArchive' as const,
     icon: '📦',
   },
   {
     title: 'Validate Archive',
-    subtitle: 'Check archive integrity and scan for issues',
+    subtitle: 'Check archive integrity and review issues',
     screen: 'ValidateArchive' as const,
     icon: '✅',
   },
@@ -52,9 +52,8 @@ export function HomeScreen({ navigation }: Props) {
         <Text style={styles.appIcon}>🗄️</Text>
         <Text style={styles.title}>Nitro Archive</Text>
         <Text style={styles.subtitle}>
-          A production-grade ZIP archive library powered by Nitro Modules.
-          Inspect, create, extract, and validate archives with native Swift and
-          Kotlin performance.
+          Open, create, extract, and validate ZIP, TAR, and TAR.GZ archives with
+          the Rust archive engine.
         </Text>
       </View>
 

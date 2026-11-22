@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   TextInput,
   ActivityIndicator,
   Platform,
@@ -20,6 +19,7 @@ import type {
 } from 'react-native-nitro-archive'
 import { openArchive, fileSource, uriSource } from 'react-native-nitro-archive'
 import { ArchiveInfo } from '../components/ArchiveInfo'
+import { ArchiveFormScrollView } from '../components/ArchiveFormScrollView'
 import { ExtractionProgress } from '../components/ExtractionProgress'
 
 function formatBytes(bytes: bigint): string {
@@ -33,6 +33,7 @@ export function ValidateArchiveScreen() {
   const insets = useSafeAreaInsets()
   const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'validating' | 'done' | 'error'>('idle')
   const [archivePath, setArchivePath] = useState('')
+  const [password, setPassword] = useState('')
   const [reader, setReader] = useState<ArchiveReader | null>(null)
   const [result, setResult] = useState<ValidationResult | null>(null)
   const [progress, setProgress] = useState<ArchiveProgress | null>(null)
@@ -78,6 +79,7 @@ export function ValidateArchiveScreen() {
       const task = reader.validate({
         verifyChecksums: true,
         scanAllEntries: true,
+        password: reader.encrypted ? password || undefined : undefined,
       })
 
       taskRef.current = task
@@ -100,18 +102,19 @@ export function ValidateArchiveScreen() {
       setError(message)
       setState('error')
     }
-  }, [reader])
+  }, [password, reader])
 
   const handleClose = useCallback(() => {
     reader?.dispose()
     setReader(null)
+    setPassword('')
     setResult(null)
     setProgress(null)
     setState('idle')
   }, [reader])
 
   return (
-    <ScrollView
+    <ArchiveFormScrollView
       style={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={styles.content}
     >
@@ -130,7 +133,7 @@ export function ValidateArchiveScreen() {
             <Text style={styles.primaryButtonText}>Open Archive</Text>
           </TouchableOpacity>
           <Text style={styles.hint}>
-            Enter a path or URI to a .zip file to validate its integrity
+            Enter a path or URI to a ZIP, TAR, or TAR.GZ archive.
           </Text>
         </View>
       ) : null}
@@ -210,6 +213,21 @@ export function ValidateArchiveScreen() {
           ) : null}
 
           <View style={styles.actionGroup}>
+            {reader.encrypted && state !== 'done' ? (
+              <TextInput
+                style={styles.input}
+                accessibilityLabel="Archive password"
+                placeholder="Archive password"
+                placeholderTextColor={colors.placeholder}
+                value={password}
+                onChangeText={setPassword}
+                editable={state !== 'validating'}
+                autoCapitalize="none"
+                autoCorrect={false}
+                secureTextEntry
+              />
+            ) : null}
+
             {state !== 'done' ? (
               <TouchableOpacity
                 style={[
@@ -233,7 +251,7 @@ export function ValidateArchiveScreen() {
           </View>
         </>
       ) : null}
-    </ScrollView>
+    </ArchiveFormScrollView>
   )
 }
 

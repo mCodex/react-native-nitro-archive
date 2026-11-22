@@ -4,7 +4,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
   TextInput,
   ActivityIndicator,
   Alert,
@@ -27,7 +26,9 @@ import {
   directoryUriDestination,
 } from 'react-native-nitro-archive'
 import { ArchiveInfo } from '../components/ArchiveInfo'
+import { ArchiveFormScrollView } from '../components/ArchiveFormScrollView'
 import { ExtractionProgress } from '../components/ExtractionProgress'
+import { useExampleDirectory } from '../exampleDirectory'
 
 type ScreenState = 'idle' | 'loading' | 'loaded' | 'listing' | 'extracting' | 'validating' | 'reading' | 'error'
 
@@ -38,11 +39,11 @@ function formatBytes(bytes: bigint): string {
   return `${(Number(bytes) / 1073741824).toFixed(1)} GB`
 }
 
-function defaultExtractPath(pathOrUri: string): string {
+function defaultExtractPath(pathOrUri: string, exampleDirectory: string): string {
   const trimmed = pathOrUri.trim().replace(/\/+$/, '')
   const rawName = trimmed.split('/').pop() || 'archive'
-  const archiveName = rawName.replace(/\.[^.]+$/, '') || 'archive'
-  return `/tmp/${archiveName}-extracted`
+  const archiveName = rawName.replace(/\.(?:tar\.gz|[^.]+)$/i, '') || 'archive'
+  return `${exampleDirectory.replace(/\/+$/, '')}/${archiveName}-extracted`
 }
 
 function validateExtractPath(path: string): string | undefined {
@@ -50,10 +51,10 @@ function validateExtractPath(path: string): string | undefined {
 
   if (!trimmed) return 'Enter an absolute destination directory.'
   if (!trimmed.includes('://') && !trimmed.startsWith('/')) {
-    return 'Use an absolute directory path, for example /tmp/test-extracted.'
+    return 'Use an absolute directory path or a supported directory URI.'
   }
-  if (/\.zip$/i.test(trimmed)) {
-    return 'Choose a directory, not the .zip file. Try /tmp/test-extracted.'
+  if (/\.(?:zip|tar|tar\.gz|tgz)$/i.test(trimmed)) {
+    return 'Choose a directory to receive the extracted files.'
   }
 
   return undefined
@@ -61,6 +62,7 @@ function validateExtractPath(path: string): string | undefined {
 
 export function OpenArchiveScreen() {
   const insets = useSafeAreaInsets()
+  const exampleDirectory = useExampleDirectory()
   const [state, setState] = useState<ScreenState>('idle')
   const [archiveUri, setArchiveUri] = useState<string>('')
   const [password, setPassword] = useState<string>('')
@@ -76,7 +78,7 @@ export function OpenArchiveScreen() {
   const extractTaskRef = useRef<ArchiveTask<ExtractionResult> | null>(null)
   const validateTaskRef = useRef<ArchiveTask<ValidationResult> | null>(null)
   const isBusy = state === 'loading' || state === 'listing' || state === 'extracting' || state === 'validating' || state === 'reading'
-  const passwordOption = password.trim() || undefined
+  const passwordOption = password || undefined
   const encryptedNeedsPassword = reader?.encrypted === true && passwordOption == null
 
   const handleOpenArchive = useCallback(async () => {
@@ -101,7 +103,7 @@ export function OpenArchiveScreen() {
 
       const isUri = archiveUri.includes('://')
       const source = isUri ? uriSource(archiveUri) : fileSource(archiveUri)
-      setExtractPath(defaultExtractPath(archiveUri))
+      setExtractPath(defaultExtractPath(archiveUri, exampleDirectory))
 
       const archiveReader = await openArchive(source, { password: passwordOption })
       setReader(archiveReader)
@@ -111,7 +113,7 @@ export function OpenArchiveScreen() {
       setError(message)
       setState('error')
     }
-  }, [archiveUri, passwordOption])
+  }, [archiveUri, exampleDirectory, passwordOption])
 
   const handleListEntries = useCallback(async () => {
     if (!reader) return
@@ -274,10 +276,9 @@ export function OpenArchiveScreen() {
   }, [reader, entryPage, passwordOption])
 
   return (
-    <ScrollView
+    <ArchiveFormScrollView
       style={[styles.container, { paddingTop: insets.top }]}
       contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
     >
       {!reader && state !== 'loading' ? (
         <View style={styles.centeredSection}>
@@ -307,7 +308,7 @@ export function OpenArchiveScreen() {
             <Text style={styles.primaryButtonText}>Open Archive</Text>
           </TouchableOpacity>
           <Text style={styles.hint}>
-            Enter a path or URI to a .zip file to inspect, extract, or validate
+            Enter a path or URI to a ZIP, TAR, or TAR.GZ archive.
           </Text>
         </View>
       ) : null}
@@ -481,7 +482,7 @@ export function OpenArchiveScreen() {
             <Text style={styles.inputLabel}>Extract destination directory</Text>
             <TextInput
               style={styles.input}
-              placeholder="/tmp/test-extracted"
+              placeholder={`${exampleDirectory}/test-extracted`}
               placeholderTextColor={colors.placeholder}
               value={extractPath}
               onChangeText={setExtractPath}
@@ -555,7 +556,7 @@ export function OpenArchiveScreen() {
           </View>
         </>
       ) : null}
-    </ScrollView>
+    </ArchiveFormScrollView>
   )
 }
 
