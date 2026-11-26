@@ -1,14 +1,16 @@
+import { useExampleDirectory } from '../exampleDirectory'
+import { archiveName } from '../archiveNames'
 import React, { useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  TextInput,
   ActivityIndicator,
   Platform,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ArchiveTextField } from '../components/ArchiveTextField'
 import { colors } from '../theme'
 import type {
   ArchiveReader,
@@ -17,7 +19,7 @@ import type {
   ArchiveTask,
   ArchiveIssue,
 } from 'react-native-nitro-archive'
-import { openArchive, fileSource, uriSource } from 'react-native-nitro-archive'
+import { openArchive, fileSource } from 'react-native-nitro-archive'
 import { ArchiveInfo } from '../components/ArchiveInfo'
 import { ArchiveFormScrollView } from '../components/ArchiveFormScrollView'
 import { ExtractionProgress } from '../components/ExtractionProgress'
@@ -32,7 +34,8 @@ function formatBytes(bytes: bigint): string {
 export function ValidateArchiveScreen() {
   const insets = useSafeAreaInsets()
   const [state, setState] = useState<'idle' | 'loading' | 'loaded' | 'validating' | 'done' | 'error'>('idle')
-  const [archivePath, setArchivePath] = useState('')
+  const { directory, lastArchive } = useExampleDirectory()
+  const [name, setName] = useState(lastArchive)
   const [password, setPassword] = useState('')
   const [reader, setReader] = useState<ArchiveReader | null>(null)
   const [result, setResult] = useState<ValidationResult | null>(null)
@@ -49,15 +52,8 @@ export function ValidateArchiveScreen() {
       setProgress(null)
       taskRef.current?.dispose()
 
-      if (!archivePath.trim()) {
-        setError('Enter an archive file path or URI.')
-        setState('idle')
-        return
-      }
-
-      const isUri = archivePath.includes('://')
-      const source = isUri ? uriSource(archivePath) : fileSource(archivePath)
-
+      const filename = archiveName(name)
+      const source = fileSource(`${directory}/${filename}`)
       const archiveReader = await openArchive(source)
       setReader(archiveReader)
       setState('loaded')
@@ -66,7 +62,7 @@ export function ValidateArchiveScreen() {
       setError(message)
       setState('error')
     }
-  }, [archivePath])
+  }, [name, directory])
 
   const handleValidate = useCallback(async () => {
     if (!reader) return
@@ -120,20 +116,17 @@ export function ValidateArchiveScreen() {
     >
       {state === 'idle' ? (
         <View style={styles.centeredSection}>
-          <TextInput
-            style={styles.input}
-            placeholder="/path/to/archive.zip"
-            placeholderTextColor={colors.placeholder}
-            value={archivePath}
-            onChangeText={setArchivePath}
-            autoCapitalize="none"
-            autoCorrect={false}
+          <ArchiveTextField
+            label="Archive file name"
+            placeholder="my-archive.zip"
+            value={name}
+            onChangeText={setName}
           />
           <TouchableOpacity style={styles.primaryButton} onPress={handleOpenArchive}>
             <Text style={styles.primaryButtonText}>Open Archive</Text>
           </TouchableOpacity>
           <Text style={styles.hint}>
-            Enter a path or URI to a ZIP, TAR, or TAR.GZ archive.
+            Use the file name saved in this app, including its extension.
           </Text>
         </View>
       ) : null}
@@ -214,16 +207,12 @@ export function ValidateArchiveScreen() {
 
           <View style={styles.actionGroup}>
             {reader.encrypted && state !== 'done' ? (
-              <TextInput
-                style={styles.input}
-                accessibilityLabel="Archive password"
+              <ArchiveTextField
+                label="Archive password"
                 placeholder="Archive password"
-                placeholderTextColor={colors.placeholder}
                 value={password}
                 onChangeText={setPassword}
                 editable={state !== 'validating'}
-                autoCapitalize="none"
-                autoCorrect={false}
                 secureTextEntry
               />
             ) : null}
@@ -325,18 +314,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 15,
     marginTop: 12,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10,
-    width: '100%',
   },
   errorBanner: {
     backgroundColor: colors.dangerSoft,

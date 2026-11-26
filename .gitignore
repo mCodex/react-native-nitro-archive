@@ -81,3 +81,5 @@ nitrogen/
 # Rust build outputs
 /rust/target/
 /rust/artifacts/
+
+docs/

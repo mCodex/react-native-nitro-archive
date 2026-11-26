@@ -5,10 +5,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  TextInput,
   ActivityIndicator,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ArchiveTextField } from '../components/ArchiveTextField'
 import { colors } from '../theme'
 import type {
   ArchiveAccessMode,
@@ -86,15 +86,11 @@ export function AccessPreflightScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.sectionTitle}>Target Path or URI</Text>
-      <TextInput
-        style={styles.input}
+      <ArchiveTextField
+        label="Target path or URI"
         placeholder="/path/to/file or content://..."
-        placeholderTextColor={colors.placeholder}
         value={path}
         onChangeText={setPath}
-        autoCapitalize="none"
-        autoCorrect={false}
       />
 
       <Text style={styles.sectionTitle}>Access Mode</Text>
@@ -214,16 +210,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: 16,
     marginBottom: 8,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   modesRow: {
     flexDirection: 'row',

@@ -45,7 +45,8 @@ export class ExtractionTaskWrapper implements ArchiveTask<ExtractionResult> {
 	}
 
 	async start(): Promise<ExtractionResult> {
-        if (this.disposed) throw new ArchiveError("E_DISPOSED", "Task has been disposed.");
+		if (this.disposed)
+			throw new ArchiveError("E_DISPOSED", "Task has been disposed.");
 
 		if (this.started) {
 			throw new ArchiveError(
@@ -67,14 +68,14 @@ export class ExtractionTaskWrapper implements ArchiveTask<ExtractionResult> {
 	}
 
 	dispose(): void {
-        if (this.disposed) return;
+		if (this.disposed) return;
 
-        this.disposed = true;
-        this.native.cancel();
-        try {
-            this.nativeDispose();
-        } finally {
-            this.fanout.dispose();
-        }
+		this.disposed = true;
+		this.native.cancel();
+		try {
+			this.nativeDispose();
+		} finally {
+			this.fanout.dispose();
+		}
 	}
 }

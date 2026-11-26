@@ -61,6 +61,7 @@ export function HomeScreen({ navigation }: Props) {
         {buttons.map((btn) => (
           <TouchableOpacity
             key={btn.screen}
+            testID={`home-${btn.screen}`}
             style={styles.card}
             activeOpacity={0.7}
             onPress={() => navigation.navigate(btn.screen)}

@@ -1,14 +1,15 @@
+import { archiveName } from '../archiveNames'
 import React, { useState, useCallback, useRef } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  TextInput,
   ActivityIndicator,
   Alert,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ArchiveTextField } from '../components/ArchiveTextField'
 import { colors } from '../theme'
 import type {
   ArchiveReader,
@@ -21,7 +22,6 @@ import type {
 import {
   openArchive,
   fileSource,
-  uriSource,
   directoryDestination,
   directoryUriDestination,
 } from 'react-native-nitro-archive'
@@ -62,9 +62,9 @@ function validateExtractPath(path: string): string | undefined {
 
 export function OpenArchiveScreen() {
   const insets = useSafeAreaInsets()
-  const exampleDirectory = useExampleDirectory()
   const [state, setState] = useState<ScreenState>('idle')
-  const [archiveUri, setArchiveUri] = useState<string>('')
+  const { directory, lastArchive } = useExampleDirectory()
+  const [name, setName] = useState(lastArchive)
   const [password, setPassword] = useState<string>('')
   const [reader, setReader] = useState<ArchiveReader | null>(null)
   const [entryPage, setEntryPage] = useState<ArchiveEntryPage | null>(null)
@@ -95,16 +95,9 @@ export function OpenArchiveScreen() {
       extractTaskRef.current?.dispose()
       validateTaskRef.current?.dispose()
 
-      if (!archiveUri.trim()) {
-        setError('Enter an archive file path or URI.')
-        setState('idle')
-        return
-      }
-
-      const isUri = archiveUri.includes('://')
-      const source = isUri ? uriSource(archiveUri) : fileSource(archiveUri)
-      setExtractPath(defaultExtractPath(archiveUri, exampleDirectory))
-
+      const filename = archiveName(name)
+      const source = fileSource(`${directory}/${filename}`)
+      setExtractPath(defaultExtractPath(filename, directory))
       const archiveReader = await openArchive(source, { password: passwordOption })
       setReader(archiveReader)
       setState('loaded')
@@ -113,7 +106,7 @@ export function OpenArchiveScreen() {
       setError(message)
       setState('error')
     }
-  }, [archiveUri, exampleDirectory, passwordOption])
+  }, [name, directory, passwordOption])
 
   const handleListEntries = useCallback(async () => {
     if (!reader) return
@@ -282,33 +275,28 @@ export function OpenArchiveScreen() {
     >
       {!reader && state !== 'loading' ? (
         <View style={styles.centeredSection}>
-          <TextInput
-            style={styles.input}
-            placeholder="/path/to/archive.zip"
-            placeholderTextColor={colors.placeholder}
-            value={archiveUri}
-            onChangeText={setArchiveUri}
-            autoCapitalize="none"
-            autoCorrect={false}
+          <ArchiveTextField
+            label="Archive file name"
+            placeholder="my-archive.zip"
+            value={name}
+            onChangeText={setName}
           />
-          <TextInput
-            style={styles.input}
+          <ArchiveTextField
+            label="Archive password (optional)"
             placeholder="Password (optional, for encrypted archives)"
-            placeholderTextColor={colors.placeholder}
             value={password}
             onChangeText={setPassword}
-            autoCapitalize="none"
-            autoCorrect={false}
             secureTextEntry
           />
           <TouchableOpacity
             style={styles.primaryButton}
+            testID="open-archive"
             onPress={handleOpenArchive}
           >
             <Text style={styles.primaryButtonText}>Open Archive</Text>
           </TouchableOpacity>
           <Text style={styles.hint}>
-            Enter a path or URI to a ZIP, TAR, or TAR.GZ archive.
+            Use the file name saved in this app, including its extension.
           </Text>
         </View>
       ) : null}
@@ -479,15 +467,11 @@ export function OpenArchiveScreen() {
               </View>
             ) : null}
 
-            <Text style={styles.inputLabel}>Extract destination directory</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={`${exampleDirectory}/test-extracted`}
-              placeholderTextColor={colors.placeholder}
+            <ArchiveTextField
+              label="Extraction directory"
+              placeholder={`${directory}/test-extracted`}
               value={extractPath}
               onChangeText={setExtractPath}
-              autoCapitalize="none"
-              autoCorrect={false}
               editable={!isBusy}
             />
             <Text style={styles.fieldHelp}>
@@ -674,24 +658,6 @@ const styles = StyleSheet.create({
     color: colors.danger,
     fontSize: 16,
     fontWeight: '600',
-  },
-  inputLabel: {
-    fontSize: 15,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    marginBottom: 6,
-    marginTop: 4,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 15,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 10,
   },
   fieldHelp: {
     color: colors.textMuted,

@@ -19,34 +19,42 @@ export async function checkArchiveAccess(
 	target: ArchiveSource | ArchiveFileDestination | ExtractionDestination,
 	mode: ArchiveAccessMode,
 ): Promise<ArchiveAccessReport> {
-  if (target === null || typeof target !== "object") {
-    throw new TypeError("An archive access target is required.");
-  }
+	if (target === null || typeof target !== "object") {
+		throw new TypeError("An archive access target is required.");
+	}
 
-  const module = getNativeArchiveModule();
-  const platform = module.getCapabilities().platform;
+	const module = getNativeArchiveModule();
+	const platform = module.getCapabilities().platform;
 
-  switch (target.kind) {
-    case "file":
-    case "directory":
-      return mapAccessReport(await module.checkFileAccess(target.path, mode), mode, platform);
-    case "uri":
-    case "directory-uri":
-      return mapAccessReport(await module.checkUriAccess(target.uri, mode), mode, platform);
-    case "buffer":
-      return {
-        platform,
-        mode,
-        accessible: true,
-        readable: true,
-        writable: true,
-        persistent: true,
-        securityScoped: false,
-        providerBacked: false,
-        requiredManifestPermissions: [],
-        recoveryAction: "none",
-      };
-    default:
-      throw new TypeError("Unsupported archive access target.");
-  }
+	switch (target.kind) {
+		case "file":
+		case "directory":
+			return mapAccessReport(
+				await module.checkFileAccess(target.path, mode),
+				mode,
+				platform,
+			);
+		case "uri":
+		case "directory-uri":
+			return mapAccessReport(
+				await module.checkUriAccess(target.uri, mode),
+				mode,
+				platform,
+			);
+		case "buffer":
+			return {
+				platform,
+				mode,
+				accessible: true,
+				readable: true,
+				writable: true,
+				persistent: true,
+				securityScoped: false,
+				providerBacked: false,
+				requiredManifestPermissions: [],
+				recoveryAction: "none",
+			};
+		default:
+			throw new TypeError("Unsupported archive access target.");
+	}
 }

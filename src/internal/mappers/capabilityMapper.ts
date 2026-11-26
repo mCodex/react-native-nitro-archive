@@ -52,7 +52,7 @@ export function mapDetection(
 export function mapAccessReport(
 	native: NativeAccessOutcome,
 	mode: ArchiveAccessMode,
-  platform: "ios" | "android",
+	platform: "ios" | "android",
 ): ArchiveAccessReport {
 	return {
 		platform,

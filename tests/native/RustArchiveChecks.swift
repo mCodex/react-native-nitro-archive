@@ -37,10 +37,13 @@ enum RustArchiveChecks {
     guard let staged else { fatalError("Expected a staged archive") }
     precondition(!FileManager.default.fileExists(atPath: staged.path))
 
-    for format in ["zip", "tar", "tar.gz"] {
-      let password = format == "zip" ? "integration-password" : nil
+    precondition(nativeByteCount(nil) == nil)
+    precondition(nativeByteCount(0) == 0)
+    precondition(nativeByteCount(9_007_199_254_740_991) == 9_007_199_254_740_991)
+    for (format, password) in [("zip", nil), ("zip", "integration-password"), ("tar", nil), ("tar.gz", nil)] {
+      let sample = password == nil ? format : "encrypted." + format
       let plan = makePlan(format: format, bytes: bytes, password: password)
-      let output = path.appendingPathComponent("new." + format)
+      let output = path.appendingPathComponent("new." + sample)
       let writer = try LocalArchiveDestination(path: output.path, replaceExisting: false)
       let created = try engine.createArchive(plan: plan, outputFd: writer.file.fileDescriptor) { _, _ in true }
       precondition(created.entryCount == 1 && created.inputBytes == bytes.count)
@@ -53,6 +56,9 @@ enum RustArchiveChecks {
       precondition(bufferDetection.format == format)
       let opened = try await open.execute(input: LocalFileInput(path: output.path))
       precondition(opened.inspection.format == format)
+      precondition(nativeByteCount(opened.inspection.totalUncompressedSize) == Double(bytes.count))
+      let expectedCompressed = format == "zip" ? opened.session.entries[0].compressedSize : created.outputBytes
+      precondition(nativeByteCount(opened.inspection.compressedSize) == Double(expectedCompressed))
       let entry = opened.session.entries.first
       precondition(entry?.crc32 != nil ? format == "zip" : format != "zip")
       let payload = try await engine.readEntry(
@@ -60,7 +66,7 @@ enum RustArchiveChecks {
       )
       precondition(payload == bytes)
 
-      let destinationURL = path.appendingPathComponent("extract-" + format)
+      let destinationURL = path.appendingPathComponent("extract-" + sample)
       let destination = SafeDirectoryOutput(baseURL: destinationURL)
       let extractionPlan = try ExtractionPlanner().planExtraction(
         entries: opened.session.entries, include: nil, exclude: nil, limits: .default,

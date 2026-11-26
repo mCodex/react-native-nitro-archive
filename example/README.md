@@ -62,6 +62,24 @@ If everything is set up correctly, you should see your new app running in the An
 
 This is one way to run your app — you can also build it directly from Android Studio or Xcode.
 
+## Test the archive workflow
+
+Create an archive by entering its name and selecting ZIP, TAR, or TAR.GZ. The app
+adds the extension and saves it in the app's private storage. Open Archive and
+Validate Archive prefill the last successfully created name during the current
+session. You can also type the name of a previously saved archive, including
+its extension.
+
+With the example installed, Metro running for a debug build, and Maestro
+available, run this from the example directory:
+
+```sh
+maestro test .maestro/archive-roundtrip.yaml
+```
+
+The flow creates a ZIP, reopens it, checks the displayed byte count, lists the
+file and validates its integrity.
+
 ## Step 3: Modify your app
 
 Now that you have successfully run the app, let's make changes!

@@ -15,8 +15,8 @@ final class HybridArchiveReader: HybridNativeArchiveReaderSpec {
   init(inspection: ArchiveInspection, session: ArchiveEngineSession, engine: ArchiveEngine) {
     self.format = inspection.format
     self.entryCount = Double(inspection.entryCount)
-    self.compressedSize = inspection.compressedSize.map(Double.init)
-    self.totalUncompressedSize = inspection.totalUncompressedSize.map(Double.init)
+    self.compressedSize = nativeByteCount(inspection.compressedSize)
+    self.totalUncompressedSize = nativeByteCount(inspection.totalUncompressedSize)
     self.encrypted = inspection.encrypted
     self.comment = inspection.comment
     self.session = session

@@ -17,6 +17,7 @@ on:
       - 'cpp/**'
       - 'ios/**'
       - 'rust/**'
+      - 'tests/native/RustArchiveChecks.swift'
       - '**/Podfile.lock'
       - '**/bun.lock'
       - '**/*.podspec'
@@ -33,6 +34,7 @@ on:
       - 'cpp/**'
       - 'ios/**'
       - 'rust/**'
+      - 'tests/native/RustArchiveChecks.swift'
       - '**/Podfile.lock'
       - '**/bun.lock'
       - '**/*.podspec'
@@ -83,6 +85,7 @@ jobs:
         run: |
           cargo build --locked --release --lib --manifest-path rust/Cargo.toml
           swiftc -import-objc-header rust/include/nitro_archive_core.h \
+            ios/ByteCounts.swift \
             ios/Domain/{ArchiveError,ArchivePath,DuplicatePathPolicy,ExtractionLimits,PathPolicy,TaskStateMachine}.swift \
             ios/Application/Ports/{ArchiveAccessInspecting,ArchiveEngine,ArchiveInput,DirectoryOutput}.swift \
             ios/Application/{OpenArchiveUseCase,ExtractArchiveUseCase,ExtractionPlanner}.swift \

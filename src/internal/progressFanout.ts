@@ -5,7 +5,7 @@ export class ProgressFanout {
 	private disposed = false;
 
 	add(listener: ArchiveProgressListener): () => void {
-        if (this.disposed) return () => {};
+		if (this.disposed) return () => {};
 
 		this.listeners.add(listener);
 		return () => {

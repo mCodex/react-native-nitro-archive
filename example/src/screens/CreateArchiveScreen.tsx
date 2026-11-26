@@ -5,13 +5,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Keyboard,
-  TextInput,
   ActivityIndicator,
   Alert,
   useWindowDimensions,
 } from 'react-native'
 import { ArchiveFormScrollView } from '../components/ArchiveFormScrollView'
+import { archiveName } from '../archiveNames'
 import { useExampleDirectory } from '../exampleDirectory'
+import { ArchiveTextField } from '../components/ArchiveTextField'
 import { colors } from '../theme'
 import type {
   ArchiveFormat,
@@ -25,7 +26,6 @@ import type {
 import {
   createArchive,
   fileDestination,
-  uriDestination,
   bufferEntry,
 } from 'react-native-nitro-archive'
 import { ProgressBar } from '../components/ProgressBar'
@@ -109,12 +109,10 @@ function OptionGrid<T extends string>({
 }
 
 export function CreateArchiveScreen() {
-  const directory = useExampleDirectory()
+  const { directory, lastArchive, setLastArchive } = useExampleDirectory()
   const { width } = useWindowDimensions()
   const [format, setFormat] = useState<ArchiveFormat>('zip')
-  const [customPath, setCustomPath] = useState<string | null>(null)
-  const [sampleId, setSampleId] = useState(Date.now)
-  const destinationPath = customPath ?? `${directory}/sample-${sampleId}.${format}`
+  const [name, setName] = useState(() => `sample-${Date.now()}`)
   const [bufferFileName, setBufferFileName] = useState('hello.txt')
   const [bufferContent, setBufferContent] = useState('Hello from Nitro Archive!')
   const [selectedCompression, setSelectedCompression] = useState<ZipCompressionMethod>('deflate')
@@ -138,10 +136,6 @@ export function CreateArchiveScreen() {
 
   const handleCreate = useCallback(async () => {
     Keyboard.dismiss()
-    if (!destinationPath.trim()) {
-      Alert.alert('Missing Path', 'Enter an absolute destination path.')
-      return
-    }
     if (format === 'zip' && selectedEncryption !== 'none' && !password.trim()) {
       Alert.alert('Missing Password', 'Enter a password or choose no encryption.')
       return
@@ -153,11 +147,8 @@ export function CreateArchiveScreen() {
       setResult(null)
       setProgress(null)
 
-      const isUri = destinationPath.includes('://')
-      const destination = isUri
-        ? uriDestination(destinationPath)
-        : fileDestination(destinationPath.trim())
-
+      const filename = archiveName(name, format)
+      const destination = fileDestination(`${directory}/${filename}`)
       const textBuffer = stringToArrayBuffer(bufferContent)
 
       const options = {
@@ -187,6 +178,7 @@ export function CreateArchiveScreen() {
 
       try {
         const creationResult = await task.start()
+        setLastArchive(filename)
         setResult(creationResult)
         setState('done')
       } finally {
@@ -201,7 +193,9 @@ export function CreateArchiveScreen() {
     }
   }, [
     format,
-    destinationPath,
+    name,
+    directory,
+    setLastArchive,
     bufferFileName,
     bufferContent,
     selectedCompression,
@@ -232,36 +226,27 @@ export function CreateArchiveScreen() {
 
       <View style={styles.panel}>
         <Text style={styles.sectionTitle}>Destination</Text>
-        <Text style={styles.inputLabel}>Archive path or URI</Text>
-        <TextInput
-          style={styles.input}
-          placeholder={`/path/to/archive.${format}`}
-          placeholderTextColor={colors.placeholder}
-          value={destinationPath}
-          onChangeText={setCustomPath}
-          autoCapitalize="none"
-          autoCorrect={false}
+        <ArchiveTextField
+          testID="archive-name"
+          label={`Archive name (.${format})`}
+          placeholder="my-archive"
+          value={name}
+          onChangeText={setName}
         />
       </View>
 
       <View style={styles.panel}>
         <Text style={styles.sectionTitle}>Entry</Text>
-        <Text style={styles.inputLabel}>Buffer file name</Text>
-        <TextInput
-          style={styles.input}
+        <ArchiveTextField
+          label="File name"
           placeholder="hello.txt"
-          placeholderTextColor={colors.placeholder}
           value={bufferFileName}
           onChangeText={setBufferFileName}
-          autoCapitalize="none"
-          autoCorrect={false}
         />
 
-        <Text style={styles.inputLabel}>Buffer content</Text>
-        <TextInput
-          style={[styles.input, styles.multilineInput]}
+        <ArchiveTextField
+          label="File content"
           placeholder="File content..."
-          placeholderTextColor={colors.placeholder}
           value={bufferContent}
           onChangeText={setBufferContent}
           multiline
@@ -304,20 +289,14 @@ export function CreateArchiveScreen() {
             onChange={setSelectedEncryption}
           />
           {selectedEncryption !== 'none' && (
-            <>
-              <Text style={styles.inputLabel}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Archive password"
-                placeholderTextColor={colors.placeholder}
-                value={password}
-                onChangeText={setPassword}
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="done"
-                secureTextEntry
-              />
-            </>
+            <ArchiveTextField
+              label="Archive password"
+              placeholder="Archive password"
+              value={password}
+              onChangeText={setPassword}
+              returnKeyType="done"
+              secureTextEntry
+            />
           )}
         </View>
       )}
@@ -343,7 +322,7 @@ export function CreateArchiveScreen() {
         <View style={styles.resultCard}>
           <Text style={styles.resultTitle}>{format.toUpperCase()} archive created</Text>
           <Text selectable style={styles.resultText}>
-            {result.output.kind === 'file' ? result.output.path : result.output.uri}
+            {lastArchive}
           </Text>
           <Text style={styles.resultText}>
             Entries: {result.entryCount}
@@ -382,6 +361,7 @@ export function CreateArchiveScreen() {
           styles.createButton,
           state === 'creating' && styles.disabledButton,
         ]}
+        testID="create-archive"
         onPress={handleCreate}
         disabled={state === 'creating'}
       >
@@ -394,7 +374,7 @@ export function CreateArchiveScreen() {
         <TouchableOpacity
           style={styles.resetButton}
           onPress={() => {
-            setSampleId(Date.now())
+            setName(`sample-${Date.now()}`)
             setState('idle')
             setResult(null)
             setProgress(null)
@@ -441,21 +421,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '700',
     marginBottom: 6,
-  },
-  input: {
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: 12,
-  },
-  multilineInput: {
-    minHeight: 70,
-    textAlignVertical: 'top',
   },
   optionGrid: {
     flexDirection: 'row',

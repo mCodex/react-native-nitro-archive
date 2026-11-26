@@ -1,0 +1,50 @@
+appId: dev.modex.nitroarchiveexample
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: home-CreateArchive
+    timeout: 120000
+- tapOn:
+    id: home-CreateArchive
+- evalScript: ${output.filename = 'report-' + Date.now()}
+- tapOn:
+    id: archive-name
+- eraseText: 64
+- inputText: ${output.filename}
+- pressKey: Enter
+- scrollUntilVisible:
+    element:
+      id: create-archive
+- tapOn:
+    id: create-archive
+- scrollUntilVisible:
+    element: ZIP archive created
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: Nitro Archive
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- tapOn:
+    id: home-OpenArchive
+- assertVisible: ${output.filename}.zip
+- tapOn:
+    id: open-archive
+- assertVisible: Archive Info
+- assertVisible: 25 B
+- scrollUntilVisible:
+    element: List Entries
+- tapOn: List Entries
+- scrollUntilVisible:
+    element: hello.txt
+- scrollUntilVisible:
+    element: Validate
+- tapOn: Validate
+- scrollUntilVisible:
+    element: 'Validation: PASSED'
+    direction: UP
