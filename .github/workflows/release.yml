@@ -63,11 +63,11 @@ jobs:
           fetch-depth: 0
       - name: Setup Bun.js
         uses: oven-sh/setup-bun@v2
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: rust-apple
           path: rust/artifacts/ios/
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: rust-android
           path: rust/artifacts/android/
